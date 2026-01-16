@@ -2,11 +2,30 @@ import click
 from context import build_prompt
 from mistral_api import MistralAPI
 
+import shutil
+import re
+
+def extract_code(suggestion):
+    """Extract code from a Markdown code block."""
+    pattern = r"```python\s*(.*?)\s*```"
+    match = re.search(pattern, suggestion, re.DOTALL)
+    if match:
+        return match.group(1)
+    return suggestion  # Fallback: assume the whole text is code if no block found
+
 def apply_fix(file_path, suggestion):
-    """Apply the suggested fix to the file."""
+    """Apply the suggested fix to the file, with backup."""
     try:
+        # Create backup
+        backup_path = f"{file_path}.bak"
+        shutil.copy(file_path, backup_path)
+        click.echo(f"Backup created: {backup_path}")
+
+        # Extract and write code
+        code_to_write = extract_code(suggestion)
+        
         with open(file_path, 'w') as file:
-            file.write(suggestion)
+            file.write(code_to_write)
         return True
     except Exception as e:
         print(f"Error applying fix: {e}")

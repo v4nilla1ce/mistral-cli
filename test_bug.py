@@ -3,7 +3,7 @@ def calculate_total(items):
     total = 0
     for item in items:
         total += item
-    # Missing return statement (intentional bug)
+    return total
 
 def main():
     numbers = [1, 2, 3]
