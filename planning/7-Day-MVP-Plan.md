@@ -135,9 +135,9 @@ This document outlines the step-by-step plan to build a Mistral CLI tool that fi
    - [x] Add cancel option
 
 2. **Session Logging**
-   - [ ] Create `mistral-cli.log`
-   - [ ] Log all actions and decisions
-   - [ ] Add timestamp to entries
+   - [x] Create `mistral-cli.log`
+   - [x] Log all actions and decisions
+   - [x] Add timestamp to entries
 
 3. **Safety Features**
    - [x] Implement file backup option (`.bak` files)
