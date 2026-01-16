@@ -39,7 +39,8 @@ def cli():
 @cli.command()
 @click.argument("file")
 @click.argument("bug_description")
-def fix(file, bug_description):
+@click.option("--dry-run", is_flag=True, help="Simulate the fix without applying it.")
+def fix(file, bug_description, dry_run):
     """Suggest and optionally apply fixes for bugs."""
     click.echo(f"Analyzing {file} for bug: {bug_description}")
     prompt = build_prompt(file, bug_description)
@@ -48,6 +49,10 @@ def fix(file, bug_description):
     try:
         suggestion = api.chat(prompt)
         click.echo(f"Mistral's suggestion:\n{suggestion}")
+
+        if dry_run:
+            click.echo("\n[Dry Run] Changes were NOT applied.")
+            return
 
         if click.confirm("Do you want to apply this fix?"):
             if apply_fix(file, suggestion):
