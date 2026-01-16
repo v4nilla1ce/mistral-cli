@@ -235,19 +235,19 @@ This document outlines the step-by-step plan to build a Mistral CLI tool that fi
 
 ### Tasks:
 1. **Final Testing**
-   - Complete end-to-end testing
-   - Verify all features
-   - Fix any remaining issues
+   - [x] Complete end-to-end testing
+   - [x] Verify all features
+   - [x] Fix any remaining issues
 
 2. **Open-Source Preparation**
-   - Review all code
-   - Ensure proper licensing
-   - Prepare repository
+   - [x] Review all code
+   - [x] Ensure proper licensing
+   - [x] Prepare repository
 
 3. **Community Resources**
-   - Create issue templates
-   - Set up contribution guidelines
-   - Prepare announcement materials
+   - [x] Create issue templates
+   - [x] Set up contribution guidelines
+   - [x] Prepare announcement materials
 
 ---
 
