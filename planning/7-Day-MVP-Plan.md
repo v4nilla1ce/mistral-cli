@@ -167,14 +167,14 @@ This document outlines the step-by-step plan to build a Mistral CLI tool that fi
 
 ### Tasks:
 1. **Token Counting**
-   - Add tokenizer integration
-   - Implement token counting
-   - Display token usage
+   - [x] Add tokenizer integration
+   - [x] Implement token counting
+   - [x] Display token usage
 
 2. **Context Optimization**
-   - Implement context truncation
-   - Add relevance filtering
-   - Optimize for 10k token limit
+   - [x] Implement context truncation
+   - [ ] Add relevance filtering
+   - [x] Optimize for 10k token limit
 
 3. **Performance Testing**
    - Test with various file sizes

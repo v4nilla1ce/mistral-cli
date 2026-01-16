@@ -61,6 +61,13 @@ def fix(file, bug_description, dry_run):
     
     try:
         prompt = build_prompt(file, bug_description)
+        
+        # Token Counting
+        from token_utils import count_tokens
+        token_count = count_tokens(prompt)
+        click.echo(f"Estimated Input Tokens: {token_count}")
+        logging.info(f"Input tokens: {token_count}")
+
         api = MistralAPI()
         
         suggestion = api.chat(prompt)
