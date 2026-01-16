@@ -192,19 +192,19 @@ This document outlines the step-by-step plan to build a Mistral CLI tool that fi
 
 ### Tasks:
 1. **Documentation**
-   - Complete `README.md`
-   - Add installation instructions
-   - Include usage examples
+   - [x] Complete `README.md`
+   - [x] Add installation instructions
+   - [x] Include usage examples
 
 2. **Contribution Guidelines**
-   - Create `CONTRIBUTING.md`
-   - Define coding standards
-   - Add testing instructions
+   - [x] Create `CONTRIBUTING.md`
+   - [x] Define coding standards
+   - [x] Add testing instructions
 
 3. **User Interface**
-   - Improve command output formatting
-   - Add color coding
-   - Implement progress indicators
+   - [x] Improve command output formatting
+   - [x] Add color coding
+   - [x] Implement progress indicators
 
 ### Example README.md Section
 #### Usage

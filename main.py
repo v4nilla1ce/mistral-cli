@@ -4,9 +4,12 @@ from mistral_api import MistralAPI
 
 import shutil
 import re
-
 import logging
 import datetime
+
+from rich.console import Console
+from rich.markdown import Markdown
+from rich.panel import Panel
 
 # Configure logging
 logging.basicConfig(
@@ -14,6 +17,8 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
+
+console = Console()
 
 def extract_code(suggestion):
     """Extract code from a Markdown code block."""
@@ -29,7 +34,7 @@ def apply_fix(file_path, suggestion):
         # Create backup
         backup_path = f"{file_path}.bak"
         shutil.copy(file_path, backup_path)
-        click.echo(f"Backup created: {backup_path}")
+        console.print(f"[dim]Backup created: {backup_path}[/]")
         logging.info(f"Backup created at {backup_path}")
 
         # Extract and write code
@@ -41,7 +46,7 @@ def apply_fix(file_path, suggestion):
         return True
     except Exception as e:
         error_msg = f"Error applying fix: {e}"
-        print(error_msg)
+        console.print(f"[bold red]{error_msg}[/]")
         logging.error(error_msg)
         return False
 
@@ -57,7 +62,7 @@ def cli():
 def fix(file, bug_description, dry_run):
     """Suggest and optionally apply fixes for bugs."""
     logging.info(f"Started fix command for file: {file} with bug: {bug_description}")
-    click.echo(f"Analyzing {file} for bug: {bug_description}")
+    console.print(f"[bold blue]Analyzing[/] [green]{file}[/] for bug: [yellow]{bug_description}[/]")
     
     try:
         prompt = build_prompt(file, bug_description)
@@ -65,31 +70,33 @@ def fix(file, bug_description, dry_run):
         # Token Counting
         from token_utils import count_tokens
         token_count = count_tokens(prompt)
-        click.echo(f"Estimated Input Tokens: {token_count}")
+        console.print(f"[dim]Estimated Input Tokens: {token_count}[/]")
         logging.info(f"Input tokens: {token_count}")
 
         api = MistralAPI()
         
-        suggestion = api.chat(prompt)
-        click.echo(f"Mistral's suggestion:\n{suggestion}")
+        with console.status("[bold green]Asking Mistral AI...[/]"):
+            suggestion = api.chat(prompt)
+        
+        console.print(Panel(Markdown(suggestion), title="Mistral's Suggestion", border_style="blue"))
         logging.info("Received suggestion from API")
 
         if dry_run:
-            click.echo("\n[Dry Run] Changes were NOT applied.")
+            console.print("\n[bold yellow][Dry Run] Changes were NOT applied.[/]")
             logging.info("Dry run completed. No changes applied.")
             return
 
         if click.confirm("Do you want to apply this fix?"):
             if apply_fix(file, suggestion):
-                click.echo("Fix applied successfully!")
+                console.print("[bold green]Fix applied successfully![/]")
             else:
-                click.echo("Failed to apply fix.")
+                console.print("[bold red]Failed to apply fix.[/]")
         else:
-            click.echo("Fix cancelled")
+            console.print("[bold yellow]Fix cancelled[/]")
             logging.info("User cancelled the fix.")
             
     except Exception as e:
-        click.echo(f"Error: {e}")
+        console.print(f"[bold red]Error: {e}[/]")
         logging.error(f"An error occurred: {e}")
 
 if __name__ == "__main__":
