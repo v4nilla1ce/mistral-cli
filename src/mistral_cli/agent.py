@@ -10,7 +10,7 @@ from rich.panel import Panel
 from rich.prompt import Confirm
 
 from .api import ChatResponse, MistralAPI, ToolCall
-from .context import ConversationContext, get_system_environment
+from .context import ConversationContext
 from .tools import Tool, ToolResult, get_all_tools, get_tool_schemas
 
 console = Console()
@@ -251,6 +251,9 @@ class Agent:
                     self.state.last_failed_command = tool_call.arguments.get("command")
 
             # Add tool result message
+            # Note: Hints are already included in result.to_message() for self-correction.
+            # We cannot inject a separate system message here because Mistral API
+            # doesn't allow 'system' role after 'tool' role.
             tool_results.append(
                 {
                     "role": "tool",
@@ -259,26 +262,6 @@ class Agent:
                     "content": result.to_message(),
                 }
             )
-
-            # Inject hint as system message on failure for self-correction
-            if not result.success:
-                env = get_system_environment()
-                hint_parts = []
-                if result.hint:
-                    hint_parts.append(result.hint)
-                if result.exit_code is not None:
-                    hint_parts.append(f"Exit code: {result.exit_code}")
-                hint_parts.append(f"OS: {env.os_name}")
-                if env.available_binaries:
-                    hint_parts.append(f"Available: {', '.join(env.available_binaries)}")
-
-                hint_message = "[HINT] " + " | ".join(hint_parts)
-                tool_results.append(
-                    {
-                        "role": "system",
-                        "content": hint_message,
-                    }
-                )
 
         return tool_results
 
