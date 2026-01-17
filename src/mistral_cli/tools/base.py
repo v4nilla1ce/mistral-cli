@@ -12,12 +12,23 @@ class ToolResult:
     success: bool
     output: str
     error: Optional[str] = None
+    exit_code: Optional[int] = None
+    hint: Optional[str] = None
 
     def to_message(self) -> str:
         """Convert result to a message string for the model."""
         if self.success:
             return self.output
-        return f"Error: {self.error or self.output}"
+
+        parts = []
+        if self.error:
+            parts.append(f"Error: {self.error}")
+        if self.output:
+            parts.append(self.output)
+        if self.hint:
+            parts.append(f"Hint: {self.hint}")
+
+        return "\n".join(parts) if parts else "Unknown error"
 
 
 class Tool(ABC):

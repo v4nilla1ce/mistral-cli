@@ -10,10 +10,15 @@ from rich.panel import Panel
 from rich.prompt import Confirm
 
 from .api import ChatResponse, MistralAPI, ToolCall
-from .context import ConversationContext
+from .context import ConversationContext, get_system_environment
 from .tools import Tool, ToolResult, get_all_tools, get_tool_schemas
 
 console = Console()
+
+
+# Circuit breaker thresholds
+MAX_CONSECUTIVE_FAILURES = 3  # Same tool failing repeatedly
+MAX_TOTAL_FAILURES = 5  # Total failures in one run
 
 
 @dataclass
@@ -24,6 +29,7 @@ class AgentConfig:
     max_iterations: int = 10
     auto_confirm_safe: bool = False  # Auto-confirm safe commands (read-only)
     confirm_all: bool = False  # Skip all confirmations (trusted mode)
+    circuit_breaker: bool = True  # Enable circuit breaker for failure protection
 
 
 @dataclass
@@ -33,6 +39,10 @@ class AgentState:
     iteration: int = 0
     tool_calls_made: list[dict] = field(default_factory=list)
     cancelled: bool = False
+    # Failure tracking for self-correction
+    consecutive_failures: int = 0
+    total_failures: int = 0
+    last_failed_command: Optional[str] = None
 
 
 class Agent:
@@ -130,6 +140,22 @@ class Agent:
                     return "Operation cancelled by user."
 
                 messages.extend(tool_messages)
+
+                # Circuit breaker check
+                if self.config.circuit_breaker:
+                    if self.state.consecutive_failures >= MAX_CONSECUTIVE_FAILURES:
+                        return (
+                            f"Circuit breaker triggered: {self.state.consecutive_failures} "
+                            f"consecutive failures on the same operation. "
+                            f"Last failed command: {self.state.last_failed_command or 'N/A'}. "
+                            "Please check the command or environment and try again."
+                        )
+                    if self.state.total_failures >= MAX_TOTAL_FAILURES:
+                        return (
+                            f"Circuit breaker triggered: {self.state.total_failures} "
+                            f"total failures in this session. "
+                            "Multiple operations are failing. Please review the errors above."
+                        )
             else:
                 # No tool calls - this is the final response
                 final_content = response.content or ""
@@ -213,6 +239,17 @@ class Agent:
                 }
             )
 
+            # Update failure tracking
+            if result.success:
+                self.state.consecutive_failures = 0
+                self.state.last_failed_command = None
+            else:
+                self.state.consecutive_failures += 1
+                self.state.total_failures += 1
+                # Track failed command for shell tools
+                if tool_call.name == "shell":
+                    self.state.last_failed_command = tool_call.arguments.get("command")
+
             # Add tool result message
             tool_results.append(
                 {
@@ -222,6 +259,26 @@ class Agent:
                     "content": result.to_message(),
                 }
             )
+
+            # Inject hint as system message on failure for self-correction
+            if not result.success:
+                env = get_system_environment()
+                hint_parts = []
+                if result.hint:
+                    hint_parts.append(result.hint)
+                if result.exit_code is not None:
+                    hint_parts.append(f"Exit code: {result.exit_code}")
+                hint_parts.append(f"OS: {env.os_name}")
+                if env.available_binaries:
+                    hint_parts.append(f"Available: {', '.join(env.available_binaries)}")
+
+                hint_message = "[HINT] " + " | ".join(hint_parts)
+                tool_results.append(
+                    {
+                        "role": "system",
+                        "content": hint_message,
+                    }
+                )
 
         return tool_results
 

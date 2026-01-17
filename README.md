@@ -7,7 +7,8 @@ A command-line interface that uses Mistral AI to inspect your code, analyze bugs
 - **Automated Bug Fixing**: Analyzes error descriptions and suggests code fixes with streaming output.
 - **Code Review**: Get detailed quality assessments without modifying files (`mistral review`).
 - **Interactive Chat**: Conversational interface with streaming responses and file context management.
-- **Agentic Mode** (NEW): Let the AI autonomously execute commands, read/write files, and accomplish complex tasks with human-in-the-loop confirmation.
+- **Agentic Mode**: Let the AI autonomously execute commands, read/write files, and accomplish complex tasks with human-in-the-loop confirmation.
+- **Self-Correction** (NEW in v0.4): Agent detects errors, analyzes exit codes, and automatically adapts commands (e.g., tries `python` when `python3` fails on Windows).
 - **Multi-Language Support**: Works with Python, JavaScript, TypeScript, Go, Rust, and more.
 - **Global Installation**: Install once with `pipx`, run from anywhere.
 - **Safety First**:
@@ -16,6 +17,7 @@ A command-line interface that uses Mistral AI to inspect your code, analyze bugs
   - **Dry Run**: Preview changes without modifying files (`--dry-run`).
   - **Diff Preview**: See exactly what will change before applying (`/diff`).
   - **Confirmation**: Always asks for permission before writing to disk.
+  - **Circuit Breaker**: Stops after repeated failures to prevent infinite loops.
 - **Smart Context**:
   - **Token Management**: Estimates token usage and warns at 80%/90% capacity.
   - **Glob Patterns**: Add multiple files with `/add src/**/*.py`.
@@ -147,6 +149,14 @@ Simply describe what you want to do:
 - `--confirm-all` - Skip all confirmations (trusted mode, use with caution)
 - `--auto-confirm-safe` - Auto-confirm read-only commands (ls, git status, etc.)
 - `--max-iterations <n>` - Maximum agent iterations per request (default: 10)
+
+**Self-Correction (v0.4):**
+
+The agent is now context-aware and can recover from common errors:
+- Knows its OS, shell, and available tools (python, node, git, etc.)
+- Detects exit codes (e.g., 9009 on Windows = command not found)
+- Analyzes error patterns and suggests fixes (e.g., "Try `python` instead of `python3`")
+- Circuit breaker stops after 3 consecutive failures to prevent infinite loops
 
 **Available Tools:**
 

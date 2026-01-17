@@ -1,6 +1,11 @@
 """Prompt building and conversation context management."""
 
 import json
+import os
+import platform
+import shutil
+from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
 
@@ -9,6 +14,95 @@ from rich.console import Console
 from .config import get_data_dir, get_system_prompt as get_config_system_prompt
 
 console = Console()
+
+
+@dataclass
+class SystemEnvironment:
+    """Cached system environment information."""
+
+    os_name: str
+    os_version: str
+    shell: str
+    cwd: str
+    available_binaries: list[str]
+    timestamp: str
+
+    def format_block(self) -> str:
+        """Format environment info as a prompt block."""
+        binaries = ", ".join(self.available_binaries) if self.available_binaries else "none detected"
+        return (
+            f"## Environment\n"
+            f"- OS: {self.os_name} {self.os_version}\n"
+            f"- Shell: {self.shell}\n"
+            f"- CWD: {self.cwd}\n"
+            f"- Available: {binaries}\n"
+            f"- Time: {self.timestamp}"
+        )
+
+
+def _detect_shell() -> str:
+    """Detect the current shell."""
+    if platform.system() == "Windows":
+        # Check for PowerShell vs CMD
+        comspec = os.environ.get("COMSPEC", "")
+        # PSModulePath is set in PowerShell
+        if os.environ.get("PSModulePath"):
+            return "PowerShell"
+        elif "cmd.exe" in comspec.lower():
+            return "CMD"
+        return "Windows Shell"
+    else:
+        shell = os.environ.get("SHELL", "/bin/sh")
+        return Path(shell).name
+
+
+def _detect_binaries() -> list[str]:
+    """Detect available key binaries using shutil.which()."""
+    binaries_to_check = [
+        "python",
+        "python3",
+        "node",
+        "npm",
+        "git",
+        "pip",
+        "cargo",
+        "rustc",
+    ]
+    available = []
+    for binary in binaries_to_check:
+        if shutil.which(binary):
+            available.append(binary)
+    return available
+
+
+def get_system_environment() -> SystemEnvironment:
+    """Get cached system environment information.
+
+    This is evaluated once and cached for the session.
+    """
+    global _cached_environment
+    if _cached_environment is None:
+        _cached_environment = SystemEnvironment(
+            os_name=platform.system(),
+            os_version=platform.release(),
+            shell=_detect_shell(),
+            cwd=os.getcwd(),
+            available_binaries=_detect_binaries(),
+            timestamp=datetime.now().strftime("%Y-%m-%d %H:%M"),
+        )
+    return _cached_environment
+
+
+def refresh_system_environment() -> SystemEnvironment:
+    """Force refresh of cached system environment."""
+    global _cached_environment
+    _cached_environment = None
+    return get_system_environment()
+
+
+# Module-level cache for environment info
+_cached_environment: Optional[SystemEnvironment] = None
+
 
 # Model token limits (approximate)
 MODEL_TOKEN_LIMITS = {
@@ -154,31 +248,47 @@ class ConversationContext:
             return True, f"Removed {file_path}"
         return False, "File not in context."
 
-    def get_system_prompt(self) -> str:
-        """Construct the system prompt with file contents.
+    def get_system_prompt(self, include_environment: bool = True) -> str:
+        """Construct the system prompt with file contents and environment info.
+
+        Args:
+            include_environment: Whether to include system environment info.
 
         Returns:
-            The system prompt including any file context.
+            The system prompt including environment and file context.
         """
+        parts = []
+
+        # Add environment block first (for agent awareness)
+        if include_environment:
+            env = get_system_environment()
+            parts.append(env.format_block())
+            parts.append(
+                "\n## Instructions\n"
+                "If a command fails, analyze the error. "
+                "Do not repeat failed commands verbatim. "
+                "Adapt based on the OS and available tools."
+            )
+
         # Check for custom system prompt from config
         custom_prompt = get_config_system_prompt()
         if custom_prompt:
-            base_prompt = custom_prompt
+            parts.append(f"\n\n{custom_prompt}")
         else:
-            base_prompt = (
-                "You are a helpful AI coding assistant.\n"
+            parts.append(
+                "\n\nYou are a helpful AI coding assistant.\n"
                 "Provide clear, concise answers.\n"
                 "Do not repeat code or explanations unnecessarily."
             )
 
-        if not self.files:
-            return base_prompt
+        # Add file context
+        if self.files:
+            context_str = "\n\nContext Files:"
+            for path, content in self.files.items():
+                context_str += f"\n\n--- File: {path} ---\n{content}\n"
+            parts.append(context_str)
 
-        context_str = "\n\nContext Files:"
-        for path, content in self.files.items():
-            context_str += f"\n\n--- File: {path} ---\n{content}\n"
-
-        return base_prompt + context_str
+        return "".join(parts)
 
     def prepare_messages(
         self, user_input: str, model: str = "mistral-small"
