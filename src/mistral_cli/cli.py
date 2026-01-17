@@ -347,7 +347,7 @@ def completions(shell: str, install: bool):
     elif shell == "powershell":
         # PowerShell profile path
         install_path = Path.home() / "Documents" / "PowerShell" / "Microsoft.PowerShell_profile.ps1"
-        install_line = 'Invoke-Expression ((mistral completions powershell) -join "`n")'
+        install_line = '$env:_MISTRAL_COMPLETE="powershell_source"; mistral | Out-String | Invoke-Expression'
 
     if install:
         try:
