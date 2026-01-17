@@ -1,85 +1,154 @@
-# Mistral CLI 🤖
+# Mistral CLI
 
-A powerful command-line interface that uses Mistral AI to inspect your Python code, analyze bugs, and automatically suggest fixes.
+A command-line interface that uses Mistral AI to inspect your Python code, analyze bugs, and automatically suggest fixes.
 
-## Features ✨
+## Features
 
-*   **Automated Bug Fixing**: Analyzes error descriptions and suggests Python code fixes.
-*   **Safety First**:
-    *   **Backups**: Automatically creates `.bak` files before applying any changes.
-    *   **Dry Run**: Preview the AI's suggestion without modifying files (`--dry-run`).
-    *   **Confirmation**: Always asks for permission before writing to disk.
-*   **Smart Context**:
-    *   **Token Management**: Estimates token usage to avoid API limits.
-    *   **Context Truncation**: Automatically shortens huge files to fit within the model's window.
-*   **Windows Compatible**: Native implementation works seamlessly on Windows, Linux, and macOS.
-*   **Logging**: Tracks all actions in `mistral-cli.log` for debugging and transparency.
+- **Automated Bug Fixing**: Analyzes error descriptions and suggests Python code fixes.
+- **Interactive Chat**: Conversational interface with streaming responses and file context management.
+- **Global Installation**: Install once with `pipx`, run from anywhere.
+- **Safety First**:
+  - **Backups**: Automatically creates backups before applying any changes.
+  - **Dry Run**: Preview the AI's suggestion without modifying files (`--dry-run`).
+  - **Confirmation**: Always asks for permission before writing to disk.
+- **Smart Context**:
+  - **Token Management**: Estimates token usage to avoid API limits.
+  - **Context Truncation**: Automatically shortens large files to fit within the model's window.
+- **Cross-Platform**: Works on Windows, Linux, and macOS with XDG-compliant config paths.
 
-## Installation 📦
+## Installation
 
-1.  **Clone the repository**:
-    ```bash
-    git clone https://github.com/v4nilla1ce/mistral-cli.git
-    cd mistral-cli
-    ```
-
-2.  **Create a virtual environment** (recommended):
-    ```bash
-    python -m venv venv
-    # Windows
-    venv\Scripts\activate
-    # Linux/Mac
-    source venv/bin/activate
-    ```
-
-3.  **Install dependencies**:
-    ```bash
-    pip install -r requirements.txt
-    ```
-
-## Configuration 🔑
-
-You need a Mistral AI API Key.
-
-1.  Create a `.env` file in the project root:
-    ```bash
-    # .env
-    MISTRAL_API_KEY=your_actual_api_key_here
-    ```
-
-## Usage 🚀
-
-### Interactive Chat 💬 (New!)
-Experience a Gemini-like conversational interface with streaming responses and context management.
+### Option 1: Install with pipx (Recommended)
 
 ```bash
-python main.py chat
+pipx install git+https://github.com/v4nilla1ce/mistral-cli.git
+```
+
+This installs `mistral` globally in an isolated environment.
+
+### Option 2: Install from source
+
+```bash
+git clone https://github.com/v4nilla1ce/mistral-cli.git
+cd mistral-cli
+pip install -e .
+```
+
+### Option 3: Development setup
+
+```bash
+git clone https://github.com/v4nilla1ce/mistral-cli.git
+cd mistral-cli
+python -m venv venv
+# Windows
+venv\Scripts\activate
+# Linux/Mac
+source venv/bin/activate
+pip install -e ".[dev]"
+pre-commit install
+```
+
+## Configuration
+
+### Quick Setup (Recommended)
+
+Run the interactive setup:
+
+```bash
+mistral config setup
+```
+
+This saves your API key to the global config file.
+
+### View Current Configuration
+
+```bash
+mistral config show
+```
+
+Shows config file location, log directory, and API key source.
+
+### Manual Configuration
+
+You can also configure via environment variable or `.env` file:
+
+```bash
+# Environment variable
+export MISTRAL_API_KEY=your_api_key_here
+
+# Or create a .env file in your project
+echo "MISTRAL_API_KEY=your_api_key_here" > .env
+```
+
+**Config Precedence** (highest to lowest):
+1. CLI argument (`--api-key`)
+2. Environment variable (`MISTRAL_API_KEY`)
+3. Global config file
+4. Local `.env` file
+
+### Config Paths
+
+| Platform | Config File | Logs & Backups |
+|----------|-------------|----------------|
+| Windows | `%LOCALAPPDATA%\mistral-cli\config.json` | `%LOCALAPPDATA%\mistral-cli\` |
+| Linux/Mac | `~/.config/mistral-cli/config.json` | `~/.local/share/mistral-cli/` |
+
+## Usage
+
+### Interactive Chat
+
+```bash
+mistral chat
 ```
 
 **Slash Commands:**
-- `/add <file>`: Add a file to the conversation context.
-- `/remove <file>`: Remove a file.
-- `/list`: See what files the AI can see.
-- `/clear`: Reset history and context.
-- `/exit`: Quit the chat.
+- `/add <file>` - Add a file to the conversation context
+- `/remove <file>` - Remove a file from context
+- `/list` - See files the AI can see
+- `/apply [file]` - Apply code from the last AI response to a file (with backup)
+- `/clear` - Reset history and context
+- `/exit` - Quit the chat
 
-### Fix a bug
-Run the `fix` command with the filename and a description of the error:
+### Fix a Bug
 
 ```bash
-python main.py fix app.py "TypeError in calculate_total function"
+mistral fix app.py "TypeError in calculate_total function"
 ```
 
 ### Dry Run (Safe Mode)
-Want to see the fix without applying it? Use `--dry-run`:
+
+Preview the fix without applying it:
 
 ```bash
-python main.py fix app.py "IndexError in list processing" --dry-run
+mistral fix app.py "IndexError in list processing" --dry-run
 ```
 
-## Logs 📝
+### Version
 
-Every interaction is logged to `mistral-cli.log` in the same directory. Check this file if something goes wrong or to audit previous fixes.
+```bash
+mistral --version
+```
+
+## Logs
+
+Logs are stored in the global data directory:
+- **Windows**: `%LOCALAPPDATA%\mistral-cli\logs\mistral-cli.log`
+- **Linux/Mac**: `~/.local/share/mistral-cli/logs/mistral-cli.log`
+
+## Development
+
+```bash
+# Run tests
+pytest
+
+# Run linters
+black src/
+isort src/
+flake8 src/
+
+# Type checking
+mypy src/
+```
 
 ## License
 
