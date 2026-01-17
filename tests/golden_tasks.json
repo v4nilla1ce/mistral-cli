@@ -1,6 +1,6 @@
 [
     {
-        "id": "basic_python_script",
+        "id": "1_hello_world",
         "description": "Create a python script that prints hello world",
         "prompt": "Create a file named hello.py that prints 'Hello World'",
         "expected_files": [
@@ -12,7 +12,7 @@
         "difficulty": 1
     },
     {
-        "id": "file_cleanup",
+        "id": "2_file_cleanup",
         "description": "Cleanup temporary files",
         "prompt": "Delete all .tmp files in the current directory",
         "setup_commands": [
@@ -30,7 +30,7 @@
         "difficulty": 2
     },
     {
-        "id": "refactor_function",
+        "id": "3_refactor_type_hints",
         "description": "Refactor a function to use type hints",
         "prompt": "Add type hints to the calculate_sum function in math_utils.py",
         "setup_files": {
@@ -40,5 +40,193 @@
             "math_utils.py": "def calculate_sum(a: int, b: int) -> int:"
         },
         "difficulty": 3
+    },
+    {
+        "id": "4_recursive_factorial",
+        "description": "Implement recursive factorial",
+        "prompt": "Create a python script factorial.py with a recursive function to calculate factorial",
+        "expected_files": [
+            "factorial.py"
+        ],
+        "expected_content": {
+            "factorial.py": "def factorial"
+        },
+        "difficulty": 2
+    },
+    {
+        "id": "5_json_processing",
+        "description": "Read JSON and extract field",
+        "prompt": "Read data.json and print the value of 'version'",
+        "setup_files": {
+            "data.json": "{\"name\": \"test\", \"version\": \"1.0.0\"}"
+        },
+        "expected_files": [],
+        "difficulty": 2
+    },
+    {
+        "id": "6_move_images",
+        "description": "Move image files to a directory",
+        "prompt": "Create an 'images' directory and move all .jpg files into it",
+        "setup_commands": [
+            "touch photo1.jpg",
+            "touch photo2.jpg",
+            "touch notes.txt"
+        ],
+        "expected_files": [
+            "images/photo1.jpg",
+            "images/photo2.jpg",
+            "notes.txt"
+        ],
+        "expected_missing_files": [
+            "photo1.jpg",
+            "photo2.jpg"
+        ],
+        "difficulty": 2
+    },
+    {
+        "id": "7_count_lines",
+        "description": "Count lines in a file",
+        "prompt": "Create a script count.py that prints the number of lines in input.txt",
+        "setup_files": {
+            "input.txt": "Line 1\nLine 2\nLine 3"
+        },
+        "expected_files": [
+            "count.py"
+        ],
+        "difficulty": 2
+    },
+    {
+        "id": "8_class_creation",
+        "description": "Create a simple User class",
+        "prompt": "Create user.py with a User class having name and email attributes",
+        "expected_files": [
+            "user.py"
+        ],
+        "expected_content": {
+            "user.py": "class User"
+        },
+        "difficulty": 1
+    },
+    {
+        "id": "9_environment_variable",
+        "description": "Read env var",
+        "prompt": "Create env_check.py that prints the value of TEST_VAR",
+        "expected_files": [
+            "env_check.py"
+        ],
+        "expected_content": {
+            "env_check.py": "os.environ"
+        },
+        "difficulty": 2
+    },
+    {
+        "id": "10_csv_to_json",
+        "description": "Convert CSV to JSON",
+        "prompt": "Convert data.csv to data.json",
+        "setup_files": {
+            "data.csv": "id,name\n1,Alice\n2,Bob"
+        },
+        "expected_files": [
+            "data.json"
+        ],
+        "expected_content": {
+            "data.json": "[{\"id\": \"1\", \"name\": \"Alice\"}, {\"id\": \"2\", \"name\": \"Bob\"}]"
+        },
+        "difficulty": 3
+    },
+    {
+        "id": "11_find_todos",
+        "description": "Find TODO comments",
+        "prompt": "List all lines containing 'TODO' in src/main.py",
+        "setup_files": {
+            "src/main.py": "# TODO: Fix this\nprint('code')\n# TODO: Add feature"
+        },
+        "difficulty": 2
+    },
+    {
+        "id": "12_create_readme",
+        "description": "Create a README file",
+        "prompt": "Create a README.md with the title 'Project X'",
+        "expected_files": [
+            "README.md"
+        ],
+        "expected_content": {
+            "README.md": "# Project X"
+        },
+        "difficulty": 1
+    },
+    {
+        "id": "13_list_python_files",
+        "description": "List python files",
+        "prompt": "List all .py files in the current directory",
+        "setup_commands": [
+            "touch a.py",
+            "touch b.py",
+            "touch c.txt"
+        ],
+        "difficulty": 1
+    },
+    {
+        "id": "14_check_dependencies",
+        "description": "Check if requests is installed",
+        "prompt": "Check if the 'requests' library is installed",
+        "difficulty": 2
+    },
+    {
+        "id": "15_write_function_docstring",
+        "description": "Add docstring to function",
+        "prompt": "Add a docstring to the add function in calc.py",
+        "setup_files": {
+            "calc.py": "def add(a, b):\n    return a + b"
+        },
+        "expected_content": {
+            "calc.py": "\"\"\""
+        },
+        "difficulty": 2
+    },
+    {
+        "id": "16_create_flask_app",
+        "description": "Create a minimal Flask app",
+        "prompt": "Create app.py with a basic Flask 'hello world' route",
+        "expected_files": [
+            "app.py"
+        ],
+        "expected_content": {
+            "app.py": "Flask(__name__)"
+        },
+        "difficulty": 3
+    },
+    {
+        "id": "17_sort_list",
+        "description": "Sort a list of numbers",
+        "prompt": "Create sort_nums.py to sort [5, 2, 9, 1] and print it",
+        "expected_files": [
+            "sort_nums.py"
+        ],
+        "difficulty": 2
+    },
+    {
+        "id": "18_regex_email",
+        "description": "Validate email with regex",
+        "prompt": "Create validator.py with a function is_valid_email(email)",
+        "expected_files": [
+            "validator.py"
+        ],
+        "expected_content": {
+            "validator.py": "re.match"
+        },
+        "difficulty": 3
+    },
+    {
+        "id": "19_download_file",
+        "description": "Mock download file",
+        "prompt": "Create a script that simulates downloading from a URL (just print 'Downloaded')",
+        "difficulty": 1
+    },
+    {
+        "id": "20_system_info",
+        "description": "Get system platform",
+        "prompt": "Print the current OS name",
+        "difficulty": 1
     }
 ]
