@@ -351,10 +351,12 @@ def completions(shell: str, install: bool):
 
     if install:
         try:
-            # For fish, create the completions directory if needed
-            if shell == "fish":
+            # Create parent directory if needed (for fish and powershell)
+            if shell in ("fish", "powershell"):
                 install_path.parent.mkdir(parents=True, exist_ok=True)
-                # Write the completion script directly
+
+            # For fish, write the completion script directly
+            if shell == "fish":
                 with open(install_path, "w", encoding="utf-8") as f:
                     f.write(f"# Mistral CLI completions\n{install_line}\n")
                 console.print(f"[green]Completions installed to {install_path}[/]")
