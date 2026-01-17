@@ -248,3 +248,124 @@ class ShellTool(Tool):
                 return True
 
         return False
+
+    def _apply_os_aliases(self, command: str) -> str:
+        """Translate unix-style commands to Windows equivalents if needed."""
+        if platform.system() != "Windows":
+            return command
+            
+        parts = command.split()
+        if not parts:
+            return command
+            
+        base_cmd = parts[0].lower()
+        
+        # Mapping common unix commands to Windows
+        aliases = {
+            "ls": "dir",
+            "rm": "del /q" if "-rf" in command else "del",
+            "cp": "copy",
+            "mv": "move",
+            "cat": "type",
+            "clear": "cls",
+            "pwd": "cd",
+            "touch": "type nul >",
+            "grep": "findstr",
+        }
+        
+        if base_cmd in aliases:
+            # Handle specific flags or complex replacements if needed
+            # For now, simple replacement of the command verb
+            new_cmd = aliases[base_cmd]
+            
+            # Special handling
+            if base_cmd == "touch":
+                # touch file -> type nul > file
+                if len(parts) > 1:
+                    return f"type nul > {parts[1]}"
+            elif base_cmd == "grep":
+                 # grep pattern file -> findstr pattern file
+                 return command.replace("grep", "findstr")
+            elif base_cmd == "rm" and "-rf" in command:
+                 # rm -rf dir -> rmdir /s /q dir
+                 target = parts[-1] 
+                 return f"rmdir /s /q {target}"
+            
+            # Simple replacement
+            return command.replace(parts[0], new_cmd, 1)
+            
+        return command
+
+    def execute(
+        self,
+        command: str,
+        working_dir: str | None = None,
+        timeout: int = 60,
+        **kwargs: Any,
+    ) -> ToolResult:
+        try:
+            # Smart OS Aliasing
+            original_command = command
+            command = self._apply_os_aliases(command)
+            
+            # Resolve working directory
+            cwd = os.path.abspath(working_dir) if working_dir else os.getcwd()
+
+            if not os.path.isdir(cwd):
+                return ToolResult(False, "", f"Directory not found: {cwd}")
+
+            # Execute command
+            result = subprocess.run(
+                command,
+                shell=True,
+                cwd=cwd,
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+            )
+
+            # Combine stdout and stderr
+            output_parts = []
+            if original_command != command:
+                output_parts.append(f"[debug] Aliased '{original_command}' -> '{command}'")
+                
+            if result.stdout:
+                output_parts.append(result.stdout)
+            if result.stderr:
+                output_parts.append(f"[stderr]\n{result.stderr}")
+
+            output = "\n".join(output_parts).strip()
+
+            # Truncate if too long
+            max_output = 10000
+            if len(output) > max_output:
+                output = output[:max_output] + f"\n\n... [Truncated: {len(output)} chars total]"
+
+            if result.returncode == 0:
+                return ToolResult(True, output or "(no output)")
+            else:
+                code = result.returncode
+                meaning = _get_exit_code_meaning(code)
+                hint = _compute_hint(code, output, command)
+                
+                # Check if it was an aliasing failure
+                if code != 0 and original_command != command:
+                     hint = (hint or "") + f"\nNote: Command was aliased from '{original_command}'. Try using 'filesystem' tool instead."
+
+                return ToolResult(
+                    success=False,
+                    output=output,
+                    error=f"Exit code {code}: {meaning}",
+                    exit_code=code,
+                    hint=hint,
+                )
+
+        except subprocess.TimeoutExpired:
+            return ToolResult(
+                success=False,
+                output="",
+                error=f"Command timed out after {timeout} seconds",
+                hint="Consider increasing timeout or breaking into smaller commands.",
+            )
+        except Exception as e:
+            return ToolResult(success=False, output="", error=str(e))
