@@ -3,93 +3,108 @@
 This document provides a detailed explanation of the current `mistral-cli` codebase, breaking down each component to help you understand exactly how the tool works.
 
 ## 1. Entry Point: `main.py`
-This is the heart of the CLI application. It handles user input using the `click` library and orchestrates the flow between context gathering, API interactions, and applying fixes.
+This is the heart of the CLI application. It handles user input using **Click** and **Rich** to provide a polished interactive experience.
 
-### Imports
+### Imports & Configuration
 ```python
 import click
-from context import build_prompt
-from mistral_api import MistralAPI
+from rich.console import Console
+from rich.markdown import Markdown
+from rich.panel import Panel
+import logging
+# ...
 ```
-- **`click`**: A Python package for creating command line interfaces.
-- **`build_prompt`**: Imported from our local `context` module. We'll explore this next.
-- **`MistralAPI`**: Imported from our local `mistral_api` module to handle communication with the AI.
+- **`rich`**: Used for colored output, spinners, and markdown rendering.
+- **`logging`**: Configured to write execution history to `mistral-cli.log` with timestamps.
 
 ### `apply_fix` Function
 ```python
 def apply_fix(file_path, suggestion):
     """Apply the suggested fix to the file, with backup."""
-    # ... created backup .bak file ...
-    # ... extracts python code block using regex ...
-    with open(file_path, 'w') as file:
-        file.write(code_to_write)
+    # ... checks backup ...
+    # ... extracts python code ...
+    # ... writes file ...
 ```
-- **Purpose**: safely applies the fix.
+- **Purpose**: Safely applies the fix.
 - **Safety Mechanisms**:
     1.  **Backup**: Copies the original file to `filename.bak` before any writes.
-    2.  **Extraction**: Uses a regex to find content between ```python ... ``` blocks. This prevents writing conversational text (like "Here is your fix:") into the code file.
+    2.  **Extraction**: Uses regex to parse content between ```python ... ``` blocks. This ensures only code is written, filtering out conversational text.
 
-### CLI Setup
+### The CLI Interface
 ```python
 @click.group()
-def cli():
-    """Mistral CLI: Fix Python bugs using Mistral API."""
-    pass
-```
-- **`@click.group()`**: Defines the main command group.
+def cli(): pass
 
-### The `fix` Command
-```python
-@click.command()
-@click.argument("file")
-@click.argument("bug_description")
-def fix(file, bug_description):
+@cli.command()
+@click.option("--dry-run", is_flag=True)
+def fix(file, bug_description, dry_run):
+    # ... orchestrates the fix ...
 ```
-- **`@click.command()`**: Registers `fix` as a subcommand of the main `cli`.
-
-# ... (omitted parts of fix command logic) ...
+- **Command Structure**: Uses `click` to define the CLI args.
+- **Visuals**: Uses `console.print` and `console.status` (spinner) for user feedback.
+- **Token Integation**: Calls `token_utils.count_tokens` to estimate and display usage before the API call.
 
 ---
 
 ## 2. Context Gathering: `context.py`
-This module is responsible for "seeing" the code and the error.
+This module scans the target file to build a prompt context for the AI.
 
-### `read_relevant_file`
-```python
-def read_relevant_file(file_path, max_lines=50):
-    # ... reads first 50 lines ...
-```
-- **Purpose**: Reads the target file content.
+### `read_relevant_file` & `search_in_file`
+- **`read_relevant_file`**: Reads the target file content.
+- **`search_in_file`**: Uses pure Python to find lines matching the bug description (Windows-compatible).
 
-### `search_in_file`
-```python
-def search_in_file(file_path, keyword):
-    """Search for a keyword in the file using Python (Windows-compatible)."""
-    # ... iterates line by line looking for keyword ...
-```
-- **Purpose**: Finds specific lines of code relevant to the bug.
-- **Mechanism**: Previously used `grep` (Linux only), now uses native Python file reading to work on **Windows**.
-
-### `build_prompt`
+### `build_prompt` and Truncation
 ```python
 def build_prompt(file_path, bug_description):
-    # ...
-    function_name = bug_description.split()[0]
-    error_context = search_in_file(file_path, function_name)
-    # ...
+    # ... builds initial prompt ...
+    
+    # Context Truncation
+    if count_tokens(prompt) > 4000:
+        file_content = file_content[:truncated_len]
+        prompt = construct_final_prompt(...)
 ```
-- **Dynamic Search**: Now correctly uses the function name derived from the user's input, rather than a hardcoded string.
+- **Smart Optimization**: Checks the token count of the generated prompt. If it exceeds 4000 tokens, it automatically truncates the file content to ensure the request fits within the model's context window.
 
 ---
 
-## 3. The Brain: `mistral_api.py`
-This remains the same, handling the HTTP requests to Mistral AI.
+## 3. Token Management: `token_utils.py`
+A dedicated utility for handling tokenization using `mistral-common`.
+
+```python
+def count_tokens(prompt, model="mistral-small"):
+    # ... uses MistralTokenizer.v3() ...
+    return len(encoded.tokens)
+```
+- **Global Tokenizer**: Initializes the tokenizer once effectively.
+- **Accuracy**: Uses the official Mistral tokenizer to give precise usage estimates.
 
 ---
 
-## Summary of Current State
-- **Functional**: Can read files, find context on Windows, and safely apply fixes.
+## 4. The Brain: `mistral_api.py`
+Handles the raw HTTP communication with the Mistral API. It reads the `MISTRAL_API_KEY` from environment variables and POSTs the chat completion request.
+
+---
+
+## Summary of Current Capabilities
+- **Cross-Platform**: Full Windows support (no `grep`).
 - **Safety**:
-    - ✅ **Backups**: Creates `.bak` files.
-    - ✅ **Code Extraction**: Parses only the code blocks from the AI's response.
-- **OS Support**: Works on **Windows**, Linux, and macOS (no more `grep` dependency).
+    - Automatic Backups (`.bak`).
+    - Smart Code Extraction.
+    - Dry Run mode (`--dry-run`).
+- **User Experience**:
+    - Rich colored output and spinners.
+    - Token usage estimation.
+    - Logging to `mistral-cli.log`.
+- **Optimization**:
+    - Automatic context truncation for large files.
+
+## Project Structure
+```
+mistral-cli/
+├── main.py             # CLI Entry point
+├── context.py          # Context building & file search
+├── mistral_api.py      # API client
+├── token_utils.py      # Token counting logic
+├── mistral-cli.log     # Execution logs
+└── requirements.txt    # Dependencies
+```
