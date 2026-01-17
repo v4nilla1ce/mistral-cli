@@ -2,6 +2,42 @@
 
 This document provides a detailed explanation of the current `mistral-cli` codebase, breaking down each component to help you understand exactly how the tool works.
 
+## Architecture Overview
+
+```mermaid
+graph TD
+    User([User]) -->|Runs 'fix' command| Main[main.py CLI]
+    
+    subgraph "Core Logic"
+        Main -->|1. Build Prompt| Context[context.py]
+        Context -->|Read File| FS[(File System)]
+        Context -->|Search Error| FS
+        Context -->|Check Limits| TokenUtils[token_utils.py]
+        
+        Main -->|2. Estimate Cost| TokenUtils
+        
+        Main -->|3. Request Fix| API[mistral_api.py]
+        API -->|HTTP POST| MistralAI((Mistral AI))
+        
+        Main -->|4. Log Action| Logger[mistral-cli.log]
+    end
+
+    subgraph "Safety & Execution"
+        Main -->|5. Dry Run?| Console[Rich Console]
+        Main -->|6. Apply Fix| Apply[apply_fix]
+        Apply -->|Backup .bak| FS
+        Apply -->|Write Code| FS
+    end
+
+    classDef file fill:#f9f,stroke:#333,stroke-width:2px;
+    classDef logic fill:#e1f5fe,stroke:#0277bd,stroke-width:2px;
+    classDef ext fill:#fff3e0,stroke:#ff9800,stroke-width:2px;
+    
+    class Main,Context,TokenUtils,API,Apply logic;
+    class FS,Logger file;
+    class MistralAI ext;
+```
+
 ## 1. Entry Point: `main.py`
 This is the heart of the CLI application. It handles user input using **Click** and **Rich** to provide a polished interactive experience.
 
