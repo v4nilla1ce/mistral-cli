@@ -1,19 +1,28 @@
 # Mistral CLI
 
-A command-line interface that uses Mistral AI to inspect your Python code, analyze bugs, and automatically suggest fixes.
+A command-line interface that uses Mistral AI to inspect your code, analyze bugs, review quality, and automatically suggest fixes.
 
 ## Features
 
-- **Automated Bug Fixing**: Analyzes error descriptions and suggests Python code fixes.
+- **Automated Bug Fixing**: Analyzes error descriptions and suggests code fixes with streaming output.
+- **Code Review**: Get detailed quality assessments without modifying files (`mistral review`).
 - **Interactive Chat**: Conversational interface with streaming responses and file context management.
+- **Multi-Language Support**: Works with Python, JavaScript, TypeScript, Go, Rust, and more.
 - **Global Installation**: Install once with `pipx`, run from anywhere.
 - **Safety First**:
   - **Backups**: Automatically creates backups before applying any changes.
-  - **Dry Run**: Preview the AI's suggestion without modifying files (`--dry-run`).
+  - **Undo**: Quickly revert changes with `/undo`.
+  - **Dry Run**: Preview changes without modifying files (`--dry-run`).
+  - **Diff Preview**: See exactly what will change before applying (`/diff`).
   - **Confirmation**: Always asks for permission before writing to disk.
 - **Smart Context**:
-  - **Token Management**: Estimates token usage to avoid API limits.
-  - **Context Truncation**: Automatically shortens large files to fit within the model's window.
+  - **Token Management**: Estimates token usage and warns at 80%/90% capacity.
+  - **Glob Patterns**: Add multiple files with `/add src/**/*.py`.
+  - **Directory Tree**: Visualize project structure with `/tree`.
+  - **Profiles**: Save and load conversation contexts with `/profile`.
+- **Session Persistence**: Save and resume chat sessions with `/save` and `/load`.
+- **Shell Completions**: Tab completion for bash, zsh, fish, and PowerShell.
+- **CI/CD Aware**: Automatically adjusts output for non-interactive environments.
 - **Cross-Platform**: Works on Windows, Linux, and macOS with XDG-compliant config paths.
 
 ## Installation
@@ -46,6 +55,29 @@ venv\Scripts\activate
 source venv/bin/activate
 pip install -e ".[dev]"
 pre-commit install
+```
+
+## Updating
+
+### Update with pipx
+
+```bash
+pipx upgrade mistral-cli
+```
+
+Or reinstall to get the latest version:
+
+```bash
+pipx uninstall mistral-cli
+pipx install git+https://github.com/v4nilla1ce/mistral-cli.git
+```
+
+### Update from source
+
+```bash
+cd mistral-cli
+git pull origin main
+pip install -e .
 ```
 
 ## Configuration
@@ -102,18 +134,49 @@ mistral chat
 ```
 
 **Slash Commands:**
-- `/add <file>` - Add a file to the conversation context
-- `/remove <file>` - Remove a file from context
-- `/list` - See files the AI can see
-- `/apply [file]` - Apply code from the last AI response to a file (with backup)
-- `/clear` - Reset history and context
-- `/exit` - Quit the chat
+
+| Command | Description |
+|---------|-------------|
+| `/add [file\|glob]` | Add file(s) to context (no arg = file picker) |
+| `/remove <file>` | Remove file from context |
+| `/list` | List context files |
+| `/tree [path]` | Show directory tree |
+| `/apply [--diff] [--dry-run] [file]` | Apply last AI code to file |
+| `/create [--dry-run] <file>` | Create new file from last AI response |
+| `/diff [file]` | Preview diff of last AI response |
+| `/undo [file]` | Undo last change (restore from backup) |
+| `/backups` | List recent backups |
+| `/model [name]` | Show or switch model |
+| `/system [prompt\|--clear]` | Set or view custom system prompt |
+| `/profile [save\|load\|delete] <name>` | Manage conversation profiles |
+| `/save <name>` | Save current session |
+| `/load <name>` | Load a saved session |
+| `/sessions` | List saved sessions |
+| `/clear [history\|files]` | Clear history, files, or both |
+| `/help` | Show all commands |
+| `/exit` | Quit the chat |
 
 ### Fix a Bug
 
 ```bash
 mistral fix app.py "TypeError in calculate_total function"
 ```
+
+Options:
+- `--dry-run` - Preview without applying
+- `--model <name>` - Use a specific model
+- `--no-stream` - Disable streaming output
+
+### Review Code
+
+Get a quality assessment without modifying files:
+
+```bash
+mistral review app.py
+```
+
+Options:
+- `--model <name>` - Use a specific model
 
 ### Dry Run (Safe Mode)
 
@@ -123,10 +186,55 @@ Preview the fix without applying it:
 mistral fix app.py "IndexError in list processing" --dry-run
 ```
 
+### Shell Completions
+
+Enable tab completion for your shell:
+
+```bash
+# Show instructions
+mistral completions bash
+
+# Auto-install
+mistral completions bash --install
+mistral completions zsh --install
+mistral completions fish --install
+mistral completions powershell --install
+```
+
 ### Version
 
 ```bash
 mistral --version
+```
+
+## Examples
+
+### Add multiple files with glob patterns
+
+```bash
+# In chat mode:
+/add src/**/*.py
+/add tests/*.py
+```
+
+### Use conversation profiles
+
+```bash
+# Save current context (files, model, system prompt) as a profile
+/profile save my-project
+
+# Load it later
+/profile load my-project
+```
+
+### Review and then fix
+
+```bash
+# First, review the code
+mistral review src/utils.py
+
+# Then fix specific issues
+mistral fix src/utils.py "handle edge case when list is empty"
 ```
 
 ## Logs
@@ -140,6 +248,9 @@ Logs are stored in the global data directory:
 ```bash
 # Run tests
 pytest
+
+# Run with coverage
+pytest --cov=mistral_cli
 
 # Run linters
 black src/
