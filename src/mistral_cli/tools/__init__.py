@@ -6,6 +6,7 @@ from .filesystem import FileSystemTool
 from .project import ProjectContextTool, SearchFilesTool
 from .semantic import SemanticSearchTool
 from .shell import ShellTool
+from .critic import CriticTool
 
 __all__ = [
     "Tool",
@@ -19,11 +20,21 @@ __all__ = [
     "SemanticSearchTool",
     "ProjectContextTool",
     "ShellTool",
+    "CriticTool",
 ]
 
 
 def get_all_tools() -> list[Tool]:
     """Get instances of all available tools."""
+    # Note: Some tools like CriticTool need dependencies (Critic) passed in.
+    # get_all_tools currently instantiates them with defaults or fails if dep needed?
+    # Actually, initializing `CriticTool` here requires a `Critic` instance.
+    # The `Agent` initializes `CriticTool` manually.
+    # So we might NOT want to include it in `get_all_tools` if it requires deps not available here.
+    # But `Agent` calls `get_all_tools()` as default.
+    # Check if `CriticTool` can have a default `Critic`.
+    # Let's import logic inside.
+    from ..critic import Critic
     return [
         ReadFileTool(),
         ListFilesTool(),
@@ -34,6 +45,7 @@ def get_all_tools() -> list[Tool]:
         WriteFileTool(),
         EditFileTool(),
         ShellTool(),
+        CriticTool(Critic()),
     ]
 
 

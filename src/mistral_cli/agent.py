@@ -16,8 +16,8 @@ from .context import ConversationContext
 from .memory import MemoryManager
 from .tools import Tool, ToolResult, get_all_tools, get_tool_schemas
 from .tools.memory import UpdateMemoryTool
-from .tools.verifier import VerifyTool
-from .verifier import Verifier
+from .tools.critic import CriticTool
+from .critic import Critic
 
 console = Console()
 
@@ -256,14 +256,14 @@ class Agent:
             self.tools.append(memory_tool)
             self.tool_map[memory_tool.name] = memory_tool
 
-        # Initialize verifier
-        self.verifier = Verifier()
+        # Initialize Critic
+        self.critic = Critic()
         
-        # Add verifier tool if not present
-        if "verify_change" not in self.tool_map:
-            verify_tool = VerifyTool(self.verifier)
-            self.tools.append(verify_tool)
-            self.tool_map[verify_tool.name] = verify_tool
+        # Add critic tool if not present
+        if "critic" not in self.tool_map:
+            critic_tool = CriticTool(self.critic)
+            self.tools.append(critic_tool)
+            self.tool_map[critic_tool.name] = critic_tool
 
         # MCP integration
         self.mcp_manager: Optional["MCPManager"] = None
