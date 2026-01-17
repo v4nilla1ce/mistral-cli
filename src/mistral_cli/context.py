@@ -1,8 +1,12 @@
 """Prompt building and conversation context management."""
 
+import json
+from pathlib import Path
 from typing import Any, Optional
 
 from rich.console import Console
+
+from .config import get_data_dir
 
 console = Console()
 
@@ -240,3 +244,68 @@ class ConversationContext:
         """Reset conversation and files."""
         self.files = {}
         self.messages = []
+
+    def _get_sessions_dir(self) -> Path:
+        """Get the sessions directory path."""
+        sessions_dir = get_data_dir() / "sessions"
+        sessions_dir.mkdir(parents=True, exist_ok=True)
+        return sessions_dir
+
+    def save_session(self, name: str) -> tuple[bool, str]:
+        """Save the current session to disk.
+
+        Args:
+            name: Name for the session.
+
+        Returns:
+            Tuple of (success, message).
+        """
+        try:
+            session_data = {
+                "files": self.files,
+                "messages": self.messages,
+            }
+
+            session_path = self._get_sessions_dir() / f"{name}.json"
+            with open(session_path, "w", encoding="utf-8") as f:
+                json.dump(session_data, f, indent=2)
+
+            return True, f"Session saved: {name}"
+        except Exception as e:
+            return False, f"Failed to save session: {e}"
+
+    def load_session(self, name: str) -> tuple[bool, str]:
+        """Load a session from disk.
+
+        Args:
+            name: Name of the session to load.
+
+        Returns:
+            Tuple of (success, message).
+        """
+        try:
+            session_path = self._get_sessions_dir() / f"{name}.json"
+
+            if not session_path.exists():
+                return False, f"Session not found: {name}"
+
+            with open(session_path, "r", encoding="utf-8") as f:
+                session_data = json.load(f)
+
+            self.files = session_data.get("files", {})
+            self.messages = session_data.get("messages", [])
+
+            file_count = len(self.files)
+            msg_count = len(self.messages)
+            return True, f"Loaded session: {name} ({file_count} files, {msg_count} messages)"
+        except Exception as e:
+            return False, f"Failed to load session: {e}"
+
+    def list_sessions(self) -> list[str]:
+        """List all saved sessions.
+
+        Returns:
+            List of session names.
+        """
+        sessions_dir = self._get_sessions_dir()
+        return [p.stem for p in sessions_dir.glob("*.json")]

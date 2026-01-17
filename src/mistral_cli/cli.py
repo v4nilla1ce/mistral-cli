@@ -11,7 +11,9 @@ from typing import Optional
 
 import click
 from prompt_toolkit import PromptSession
+from prompt_toolkit.completion import PathCompleter, WordCompleter
 from prompt_toolkit.formatted_text import HTML
+from prompt_toolkit.shortcuts import radiolist_dialog
 from rich.console import Console
 from rich.live import Live
 from rich.markdown import Markdown
@@ -30,6 +32,7 @@ from .config import (
     load_config,
     save_config,
 )
+from .backup import add_backup_entry, get_last_backup, list_backups, restore_backup
 from .context import ConversationContext, build_prompt
 
 # Configure logging to use global log directory
@@ -42,6 +45,53 @@ logging.basicConfig(
 )
 
 console = Console()
+
+
+def interactive_file_picker(cwd: str = ".") -> Optional[str]:
+    """Show an interactive file picker using prompt_toolkit.
+
+    Args:
+        cwd: Current working directory to start from.
+
+    Returns:
+        Selected file path, or None if cancelled.
+    """
+    try:
+        # Get list of files in current directory (non-hidden, common code files)
+        extensions = {".py", ".js", ".ts", ".jsx", ".tsx", ".go", ".rs", ".java", ".c", ".cpp", ".h", ".hpp", ".rb", ".php", ".swift", ".kt", ".scala", ".sh", ".bash", ".zsh", ".yaml", ".yml", ".json", ".toml", ".md", ".txt", ".html", ".css", ".scss", ".sql"}
+
+        files = []
+        cwd_path = Path(cwd).resolve()
+
+        for p in cwd_path.rglob("*"):
+            if p.is_file() and not any(part.startswith(".") for part in p.parts):
+                if p.suffix.lower() in extensions or not p.suffix:
+                    rel_path = p.relative_to(cwd_path)
+                    files.append(str(rel_path))
+
+        if not files:
+            console.print("[yellow]No code files found in current directory.[/]")
+            return None
+
+        # Sort and limit
+        files.sort()
+        if len(files) > 50:
+            console.print(f"[dim]Showing first 50 of {len(files)} files.[/]")
+            files = files[:50]
+
+        # Create choices for radiolist dialog
+        choices = [(f, f) for f in files]
+
+        result = radiolist_dialog(
+            title="Select a file",
+            text="Use arrow keys to navigate, Enter to select, Escape to cancel:",
+            values=choices,
+        ).run()
+
+        return result
+    except Exception as e:
+        console.print(f"[red]Error in file picker: {e}[/]")
+        return None
 
 
 def extract_code(suggestion: str) -> str:
@@ -164,6 +214,9 @@ def apply_fix(
         shutil.copy(file_path, backup_path)
         console.print(f"[dim]Backup created: {backup_path}[/]")
         logging.info(f"Backup created at {backup_path}")
+
+        # Add to backup index for undo support
+        add_backup_entry(file_path, str(backup_path))
 
         # Write the new content
         with open(file_path, "w", encoding="utf-8") as file:
@@ -340,7 +393,14 @@ def chat(model: str, api_key: str):
 
                 elif cmd == "/add":
                     if not arg:
-                        console.print("[red]Usage: /add <file_path or glob pattern>[/]")
+                        # No argument: launch interactive file picker
+                        selected = interactive_file_picker()
+                        if selected:
+                            success, msg = context.add_file(selected)
+                            color = "green" if success else "red"
+                            console.print(f"[{color}]{msg}[/]")
+                        else:
+                            console.print("[dim]No file selected.[/]")
                         continue
 
                     # Check if arg contains glob patterns
@@ -499,15 +559,100 @@ def chat(model: str, api_key: str):
                         console.print(Panel(Syntax(extract_code(last_msg), Path(target_file).suffix.lstrip(".") or "text", theme="monokai"), title="New File Content"))
                     continue
 
+                elif cmd == "/undo":
+                    # Undo the last file change
+                    target_file = arg if arg else None
+                    last_backup = get_last_backup(target_file)
+
+                    if not last_backup:
+                        if target_file:
+                            console.print(f"[red]No backups found for {target_file}[/]")
+                        else:
+                            console.print("[red]No backups found.[/]")
+                        continue
+
+                    # Show what will be restored
+                    console.print(f"[yellow]Restoring: {last_backup['original_path']}[/]")
+                    console.print(f"[dim]From backup: {last_backup['backup_path']}[/]")
+                    console.print(f"[dim]Backup time: {last_backup['timestamp']}[/]")
+
+                    if click.confirm("Restore this backup?"):
+                        success, msg = restore_backup(last_backup)
+                        color = "green" if success else "red"
+                        console.print(f"[{color}]{msg}[/]")
+                    else:
+                        console.print("[yellow]Cancelled.[/]")
+                    continue
+
+                elif cmd == "/backups":
+                    # List or manage backups
+                    if arg == "list" or not arg:
+                        backups = list_backups(limit=10)
+                        if not backups:
+                            console.print("[dim]No backups found.[/]")
+                        else:
+                            console.print("[bold]Recent Backups:[/]")
+                            for i, b in enumerate(backups, 1):
+                                console.print(
+                                    f" {i}. {Path(b['original_path']).name} "
+                                    f"[dim]({b['timestamp'][:19]})[/]"
+                                )
+                    continue
+
+                elif cmd == "/model":
+                    if not arg:
+                        console.print(f"[bold]Current model:[/] {model}")
+                        console.print("[dim]Usage: /model <model_name>[/]")
+                        console.print("[dim]Available: mistral-tiny, mistral-small, mistral-medium, mistral-large[/]")
+                    else:
+                        model = arg.strip()
+                        console.print(f"[green]Switched to model: {model}[/]")
+                    continue
+
+                elif cmd == "/save":
+                    if not arg:
+                        console.print("[red]Usage: /save <session_name>[/]")
+                        continue
+                    success, msg = context.save_session(arg.strip())
+                    color = "green" if success else "red"
+                    console.print(f"[{color}]{msg}[/]")
+                    continue
+
+                elif cmd == "/load":
+                    if not arg:
+                        console.print("[red]Usage: /load <session_name>[/]")
+                        console.print("[dim]Use /sessions to list available sessions.[/]")
+                        continue
+                    success, msg = context.load_session(arg.strip())
+                    color = "green" if success else "red"
+                    console.print(f"[{color}]{msg}[/]")
+                    continue
+
+                elif cmd == "/sessions":
+                    sessions = context.list_sessions()
+                    if not sessions:
+                        console.print("[dim]No saved sessions.[/]")
+                    else:
+                        console.print("[bold]Saved Sessions:[/]")
+                        for s in sessions:
+                            console.print(f" - {s}")
+                    continue
+
                 elif cmd == "/help":
                     console.print(
                         "[bold]Commands:[/]\n"
-                        " /add <file|glob>           - Add file(s) to context (supports *.py, **/*.js)\n"
+                        " /add [file|glob]           - Add file(s) to context (no arg = file picker)\n"
                         " /remove <file>             - Remove file from context\n"
                         " /list                      - List context files\n"
                         " /apply [--diff] [--dry-run] [file] - Apply last AI code to file\n"
                         " /create [--dry-run] <file> - Create new file from last AI response\n"
                         " /diff [file]               - Preview diff of last AI response\n"
+                        " /undo [file]               - Undo last change (restore from backup)\n"
+                        " /backups                   - List recent backups\n"
+                        " /model [name]              - Show or switch model\n"
+                        " /save <name>               - Save current session\n"
+                        " /load <name>               - Load a saved session\n"
+                        " /sessions                  - List saved sessions\n"
                         " /clear                     - Clear history & files\n"
                         " /exit                      - Quit"
                     )
