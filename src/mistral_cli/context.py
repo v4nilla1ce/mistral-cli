@@ -2,6 +2,19 @@
 
 from typing import Any, Optional
 
+from rich.console import Console
+
+console = Console()
+
+# Model token limits (approximate)
+MODEL_TOKEN_LIMITS = {
+    "mistral-tiny": 8000,
+    "mistral-small": 8000,
+    "mistral-medium": 32000,
+    "mistral-large": 32000,
+    "default": 8000,
+}
+
 
 def read_relevant_file(file_path: str, max_lines: int = 50) -> str:
     """Read the first `max_lines` of a file.
@@ -158,11 +171,14 @@ class ConversationContext:
 
         return base_prompt + context_str
 
-    def prepare_messages(self, user_input: str) -> list[dict[str, str]]:
+    def prepare_messages(
+        self, user_input: str, model: str = "mistral-small"
+    ) -> list[dict[str, str]]:
         """Prepare the full list of messages for the API.
 
         Args:
             user_input: The current user message.
+            model: The model being used (for token limit checking).
 
         Returns:
             List of message dicts ready for the API.
@@ -172,7 +188,44 @@ class ConversationContext:
 
         # Combine system msg + history + current input
         msgs = [system_msg] + self.messages + [{"role": "user", "content": user_input}]
+
+        # Check context size and warn if approaching limit
+        self._check_context_size(msgs, model)
+
         return msgs
+
+    def _check_context_size(
+        self, messages: list[dict[str, str]], model: str = "mistral-small"
+    ) -> None:
+        """Check if context size is approaching the model's token limit.
+
+        Args:
+            messages: The full message list.
+            model: The model being used.
+        """
+        try:
+            from .tokens import count_tokens
+
+            # Calculate total content
+            total_content = "\n".join(msg["content"] for msg in messages)
+            token_count = count_tokens(total_content)
+
+            # Get model limit
+            limit = MODEL_TOKEN_LIMITS.get(model, MODEL_TOKEN_LIMITS["default"])
+            usage_percent = (token_count / limit) * 100
+
+            if usage_percent >= 90:
+                console.print(
+                    f"[bold red]Warning: Context at {usage_percent:.0f}% capacity "
+                    f"({token_count:,}/{limit:,} tokens). Consider using /clear.[/]"
+                )
+            elif usage_percent >= 80:
+                console.print(
+                    f"[yellow]Warning: Context at {usage_percent:.0f}% capacity "
+                    f"({token_count:,}/{limit:,} tokens).[/]"
+                )
+        except ImportError:
+            pass  # Tokenizer not available
 
     def add_message(self, role: str, content: str) -> None:
         """Add a message to the history.
