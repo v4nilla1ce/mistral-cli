@@ -22,6 +22,8 @@ from rich.syntax import Syntax
 
 from . import __version__
 from .api import MistralAPI
+from rich.tree import Tree
+
 from .config import (
     ensure_dirs,
     get_api_key,
@@ -29,8 +31,10 @@ from .config import (
     get_config_file,
     get_config_source,
     get_log_dir,
+    get_system_prompt,
     load_config,
     save_config,
+    set_system_prompt,
 )
 from .backup import add_backup_entry, get_last_backup, list_backups, restore_backup
 from .context import ConversationContext, build_prompt
@@ -303,8 +307,10 @@ def config_show():
 @click.argument("file")
 @click.argument("bug_description")
 @click.option("--dry-run", is_flag=True, help="Simulate the fix without applying it.")
+@click.option("--model", default="mistral-small", help="Mistral model to use.")
+@click.option("--no-stream", is_flag=True, help="Disable streaming output.")
 @click.option("--api-key", envvar="MISTRAL_API_KEY", help="Mistral API key.")
-def fix(file: str, bug_description: str, dry_run: bool, api_key: str):
+def fix(file: str, bug_description: str, dry_run: bool, model: str, no_stream: bool, api_key: str):
     """Suggest and optionally apply fixes for bugs."""
     logging.info(f"Started fix command for file: {file} with bug: {bug_description}")
     console.print(
@@ -323,12 +329,33 @@ def fix(file: str, bug_description: str, dry_run: bool, api_key: str):
 
         api = MistralAPI(api_key=api_key)
 
-        with console.status("[bold green]Asking Mistral AI...[/]"):
-            suggestion = api.chat(prompt)
+        suggestion = ""
 
-        console.print(
-            Panel(Markdown(suggestion), title="Mistral's Suggestion", border_style="blue")
-        )
+        if no_stream:
+            # Non-streaming mode (original behavior)
+            with console.status("[bold green]Asking Mistral AI...[/]"):
+                suggestion = api.chat(prompt, model=model)
+            console.print(
+                Panel(Markdown(suggestion), title="Mistral's Suggestion", border_style="blue")
+            )
+        else:
+            # Streaming mode (like chat)
+            console.print("[bold green]Mistral's Suggestion:[/]")
+            with Live(Markdown(""), refresh_per_second=10, console=console) as live:
+                try:
+                    stream = api.chat(prompt, model=model, stream=True)
+                    if isinstance(stream, list):
+                        # Error fallback
+                        suggestion = stream[0]
+                        live.update(Markdown(suggestion))
+                    else:
+                        for chunk in stream:
+                            suggestion += chunk
+                            live.update(Markdown(suggestion))
+                except Exception as e:
+                    console.print(f"[red]Error during streaming: {e}[/]")
+                    return
+
         logging.info("Received suggestion from API")
 
         if dry_run:
@@ -444,8 +471,15 @@ def chat(model: str, api_key: str):
                     continue
 
                 elif cmd == "/clear":
-                    context.clear()
-                    console.print("[yellow]Context and history cleared.[/]")
+                    if arg == "history":
+                        context.messages = []
+                        console.print("[yellow]Message history cleared.[/]")
+                    elif arg == "files":
+                        context.files = {}
+                        console.print("[yellow]Context files cleared.[/]")
+                    else:
+                        context.clear()
+                        console.print("[yellow]Context and history cleared.[/]")
                     continue
 
                 elif cmd == "/apply":
@@ -638,22 +672,70 @@ def chat(model: str, api_key: str):
                             console.print(f" - {s}")
                     continue
 
+                elif cmd == "/system":
+                    if not arg:
+                        # Show current system prompt
+                        current = get_system_prompt()
+                        if current:
+                            console.print("[bold]Custom System Prompt:[/]")
+                            console.print(Panel(current, border_style="blue"))
+                        else:
+                            console.print("[dim]Using default system prompt.[/]")
+                        console.print("[dim]Usage: /system <prompt> or /system --clear[/]")
+                    elif arg == "--clear":
+                        set_system_prompt(None)
+                        console.print("[green]System prompt reset to default.[/]")
+                    else:
+                        set_system_prompt(arg)
+                        console.print("[green]System prompt updated.[/]")
+                    continue
+
+                elif cmd == "/tree":
+                    # Show directory tree
+                    def build_tree(directory: Path, tree: Tree, max_depth: int = 3, current_depth: int = 0) -> None:
+                        if current_depth >= max_depth:
+                            return
+                        try:
+                            entries = sorted(directory.iterdir(), key=lambda p: (not p.is_dir(), p.name.lower()))
+                            for entry in entries:
+                                if entry.name.startswith("."):
+                                    continue
+                                if entry.is_dir():
+                                    branch = tree.add(f"[bold blue]{entry.name}/[/]")
+                                    build_tree(entry, branch, max_depth, current_depth + 1)
+                                else:
+                                    tree.add(f"[green]{entry.name}[/]")
+                        except PermissionError:
+                            pass
+
+                    root_path = Path(arg) if arg else Path(".")
+                    if not root_path.exists():
+                        console.print(f"[red]Path not found: {root_path}[/]")
+                        continue
+
+                    tree = Tree(f"[bold]{root_path.resolve().name}/[/]")
+                    build_tree(root_path.resolve(), tree)
+                    console.print(tree)
+                    continue
+
                 elif cmd == "/help":
                     console.print(
                         "[bold]Commands:[/]\n"
                         " /add [file|glob]           - Add file(s) to context (no arg = file picker)\n"
                         " /remove <file>             - Remove file from context\n"
                         " /list                      - List context files\n"
+                        " /tree [path]               - Show directory tree\n"
                         " /apply [--diff] [--dry-run] [file] - Apply last AI code to file\n"
                         " /create [--dry-run] <file> - Create new file from last AI response\n"
                         " /diff [file]               - Preview diff of last AI response\n"
                         " /undo [file]               - Undo last change (restore from backup)\n"
                         " /backups                   - List recent backups\n"
                         " /model [name]              - Show or switch model\n"
+                        " /system [prompt|--clear]   - Set or view custom system prompt\n"
                         " /save <name>               - Save current session\n"
                         " /load <name>               - Load a saved session\n"
                         " /sessions                  - List saved sessions\n"
-                        " /clear                     - Clear history & files\n"
+                        " /clear [history|files]     - Clear history, files, or both\n"
                         " /exit                      - Quit"
                     )
                     continue

@@ -136,3 +136,40 @@ def get_config_source(cli_key: Optional[str] = None) -> str:
         return "Local .env file"
 
     return "Not configured"
+
+
+def get_system_prompt() -> Optional[str]:
+    """Get the custom system prompt from config.
+
+    Returns:
+        The custom system prompt if configured, None otherwise.
+    """
+    config = load_config()
+    return config.get("system_prompt")
+
+
+def set_system_prompt(prompt: Optional[str]) -> bool:
+    """Set or clear the custom system prompt.
+
+    Args:
+        prompt: The system prompt to set, or None to clear.
+
+    Returns:
+        True if successful, False otherwise.
+    """
+    config = load_config()
+    if prompt:
+        config["system_prompt"] = prompt
+    elif "system_prompt" in config:
+        del config["system_prompt"]
+    return save_config(config)
+
+
+def get_default_model() -> str:
+    """Get the default model from config.
+
+    Returns:
+        The configured default model, or 'mistral-small'.
+    """
+    config = load_config()
+    return config.get("default_model", "mistral-small")

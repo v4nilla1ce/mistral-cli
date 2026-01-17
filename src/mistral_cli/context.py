@@ -6,7 +6,7 @@ from typing import Any, Optional
 
 from rich.console import Console
 
-from .config import get_data_dir
+from .config import get_data_dir, get_system_prompt as get_config_system_prompt
 
 console = Console()
 
@@ -160,11 +160,16 @@ class ConversationContext:
         Returns:
             The system prompt including any file context.
         """
-        base_prompt = (
-            "You are a helpful AI coding assistant.\n"
-            "Provide clear, concise answers.\n"
-            "Do not repeat code or explanations unnecessarily."
-        )
+        # Check for custom system prompt from config
+        custom_prompt = get_config_system_prompt()
+        if custom_prompt:
+            base_prompt = custom_prompt
+        else:
+            base_prompt = (
+                "You are a helpful AI coding assistant.\n"
+                "Provide clear, concise answers.\n"
+                "Do not repeat code or explanations unnecessarily."
+            )
 
         if not self.files:
             return base_prompt
