@@ -3,6 +3,7 @@
 from .base import Tool, ToolResult
 from .files import EditFileTool, ListFilesTool, ReadFileTool, WriteFileTool
 from .project import ProjectContextTool, SearchFilesTool
+from .semantic import SemanticSearchTool
 from .shell import ShellTool
 
 __all__ = [
@@ -13,6 +14,7 @@ __all__ = [
     "EditFileTool",
     "ListFilesTool",
     "SearchFilesTool",
+    "SemanticSearchTool",
     "ProjectContextTool",
     "ShellTool",
 ]
@@ -24,6 +26,7 @@ def get_all_tools() -> list[Tool]:
         ReadFileTool(),
         ListFilesTool(),
         SearchFilesTool(),
+        SemanticSearchTool(),
         ProjectContextTool(),
         WriteFileTool(),
         EditFileTool(),

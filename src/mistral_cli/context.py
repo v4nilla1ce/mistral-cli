@@ -248,11 +248,30 @@ class ConversationContext:
             return True, f"Removed {file_path}"
         return False, "File not in context."
 
-    def get_system_prompt(self, include_environment: bool = True) -> str:
+    def _get_planning_instructions(self) -> str:
+        """Return planning protocol instructions for complex tasks.
+
+        Returns:
+            Planning instructions as a string to include in system prompt.
+        """
+        return """
+## Planning Protocol
+For complex requests (refactoring, new features, multi-file changes):
+1. Output a <plan> block with numbered steps BEFORE any tool calls
+2. Wait for user confirmation if the plan involves >3 steps or destructive operations
+3. Reference plan steps as you execute: "Executing step 2: ..."
+
+For simple requests (single file reads, quick questions): proceed directly.
+"""
+
+    def get_system_prompt(
+        self, include_environment: bool = True, include_planning: bool = True
+    ) -> str:
         """Construct the system prompt with file contents and environment info.
 
         Args:
             include_environment: Whether to include system environment info.
+            include_planning: Whether to include planning instructions.
 
         Returns:
             The system prompt including environment and file context.
@@ -269,6 +288,10 @@ class ConversationContext:
                 "Do not repeat failed commands verbatim. "
                 "Adapt based on the OS and available tools."
             )
+
+        # Add planning instructions for agentic mode
+        if include_planning:
+            parts.append(self._get_planning_instructions())
 
         # Check for custom system prompt from config
         custom_prompt = get_config_system_prompt()

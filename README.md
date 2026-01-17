@@ -8,7 +8,10 @@ A command-line interface that uses Mistral AI to inspect your code, analyze bugs
 - **Code Review**: Get detailed quality assessments without modifying files (`mistral review`).
 - **Interactive Chat**: Conversational interface with streaming responses and file context management.
 - **Agentic Mode**: Let the AI autonomously execute commands, read/write files, and accomplish complex tasks with human-in-the-loop confirmation.
-- **Self-Correction** (NEW in v0.4): Agent detects errors, analyzes exit codes, and automatically adapts commands (e.g., tries `python` when `python3` fails on Windows).
+- **Self-Correction**: Agent detects errors, analyzes exit codes, and automatically adapts commands (e.g., tries `python` when `python3` fails on Windows).
+- **Planning Mode** (NEW in v0.5): Agent creates step-by-step plans for complex tasks, with user confirmation before execution.
+- **Semantic Search** (NEW in v0.5): Index your codebase for semantic similarity search (`mistral index`).
+- **MCP Support** (NEW in v0.5): Connect to Model Context Protocol servers for extended tool capabilities.
 - **Multi-Language Support**: Works with Python, JavaScript, TypeScript, Go, Rust, and more.
 - **Global Installation**: Install once with `pipx`, run from anywhere.
 - **Safety First**:
@@ -165,16 +168,19 @@ The agent is now context-aware and can recover from common errors:
 | `read_file` | Read file contents | No |
 | `list_files` | List directory contents with glob support | No |
 | `search_files` | Search for text/patterns in files | No |
+| `semantic_search` | Search code by meaning (requires `[rag]`) | No |
 | `project_context` | Analyze project structure | No |
 | `write_file` | Create or overwrite files | **Yes** |
 | `edit_file` | Modify specific parts of files | **Yes** |
 | `shell` | Execute shell commands | **Yes** |
+| MCP tools | Tools from connected MCP servers | **Yes** |
 
 **Agent Slash Commands:**
 
 | Command | Description |
 |---------|-------------|
 | `/tools` | List available tools |
+| `/plan` | Enable planning mode for complex tasks |
 | `/add [file]` | Add file to context |
 | `/remove <file>` | Remove file from context |
 | `/list` | List context files |
@@ -242,6 +248,49 @@ Preview the fix without applying it:
 ```bash
 mistral fix app.py "IndexError in list processing" --dry-run
 ```
+
+### Semantic Search (Index)
+
+Index your codebase for semantic code search:
+
+```bash
+# Index current directory
+mistral index
+
+# Index a specific path
+mistral index ./src
+
+# Rebuild the index
+mistral index --rebuild
+```
+
+Requires the `[rag]` optional dependency:
+
+```bash
+pipx install 'mistral-cli[rag]' --force
+# or
+pip install -e ".[rag]"
+```
+
+### MCP Servers
+
+Connect to Model Context Protocol servers for extended capabilities:
+
+```bash
+# List configured servers
+mistral mcp list
+
+# Add an MCP server (stdio transport)
+mistral mcp add filesystem -c npx -c @anthropic/mcp-server-filesystem -c /tmp
+
+# Test connection
+mistral mcp test filesystem
+
+# Remove a server
+mistral mcp remove filesystem
+```
+
+MCP tools appear automatically in agent mode alongside built-in tools.
 
 ### Shell Completions
 

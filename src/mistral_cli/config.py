@@ -249,3 +249,83 @@ def delete_profile(name: str) -> tuple[bool, str]:
         return True, f"Profile deleted: {name}"
     except Exception as e:
         return False, f"Failed to delete profile: {e}"
+
+
+# ============================================================================
+# MCP Server Configuration
+# ============================================================================
+
+
+def get_mcp_servers() -> list[dict[str, Any]]:
+    """Get configured MCP servers from config file.
+
+    Returns:
+        List of MCP server configurations.
+    """
+    config = load_config()
+    return config.get("mcp_servers", [])
+
+
+def add_mcp_server(server_config: dict[str, Any]) -> tuple[bool, str]:
+    """Add an MCP server to configuration.
+
+    Args:
+        server_config: Dict with name, transport, command/url fields.
+
+    Returns:
+        Tuple of (success, message).
+    """
+    config = load_config()
+    servers = config.get("mcp_servers", [])
+
+    # Check for duplicate name
+    name = server_config.get("name")
+    if any(s.get("name") == name for s in servers):
+        return False, f"Server '{name}' already exists"
+
+    servers.append(server_config)
+    config["mcp_servers"] = servers
+
+    if save_config(config):
+        return True, f"Added MCP server: {name}"
+    return False, "Failed to save configuration"
+
+
+def remove_mcp_server(name: str) -> tuple[bool, str]:
+    """Remove an MCP server from configuration.
+
+    Args:
+        name: Server name to remove.
+
+    Returns:
+        Tuple of (success, message).
+    """
+    config = load_config()
+    servers = config.get("mcp_servers", [])
+
+    original_len = len(servers)
+    servers = [s for s in servers if s.get("name") != name]
+
+    if len(servers) == original_len:
+        return False, f"Server '{name}' not found"
+
+    config["mcp_servers"] = servers
+    if save_config(config):
+        return True, f"Removed MCP server: {name}"
+    return False, "Failed to save configuration"
+
+
+def get_mcp_server(name: str) -> Optional[dict[str, Any]]:
+    """Get a specific MCP server configuration.
+
+    Args:
+        name: Server name.
+
+    Returns:
+        Server config dict or None if not found.
+    """
+    servers = get_mcp_servers()
+    for server in servers:
+        if server.get("name") == name:
+            return server
+    return None

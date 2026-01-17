@@ -2,7 +2,7 @@
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
 
 @dataclass
@@ -104,3 +104,77 @@ class Tool(ABC):
             A string describing what the tool will do.
         """
         return f"Execute {self.name} with arguments: {kwargs}"
+
+    def to_mcp_schema(self) -> dict[str, Any]:
+        """Generate MCP-compatible tool schema.
+
+        Returns:
+            Dict matching MCP tool definition format.
+        """
+        return {
+            "name": self.name,
+            "description": self.description,
+            "inputSchema": self.parameters,
+        }
+
+
+class MCPToolWrapper(Tool):
+    """Wrapper for tools from MCP servers.
+
+    This class allows MCP server tools to be used alongside
+    built-in tools in the agent.
+    """
+
+    def __init__(
+        self,
+        schema: dict[str, Any],
+        executor: Callable[[str, dict], ToolResult],
+        server_name: str = "mcp",
+    ):
+        """Initialize the MCP tool wrapper.
+
+        Args:
+            schema: MCP tool definition with name, description, inputSchema.
+            executor: Callable that executes the tool (name, args) -> ToolResult.
+            server_name: Name of the MCP server (for display).
+        """
+        self._schema = schema
+        self._executor = executor
+        self._server_name = server_name
+
+    @property
+    def name(self) -> str:
+        return self._schema.get("name", "unknown")
+
+    @property
+    def description(self) -> str:
+        base_desc = self._schema.get("description", "MCP tool")
+        return f"[{self._server_name}] {base_desc}"
+
+    @property
+    def parameters(self) -> dict[str, Any]:
+        return self._schema.get("inputSchema", {"type": "object", "properties": {}})
+
+    @property
+    def requires_confirmation(self) -> bool:
+        # MCP tools require confirmation by default for safety
+        return True
+
+    def execute(self, **kwargs: Any) -> ToolResult:
+        """Execute the MCP tool.
+
+        Args:
+            **kwargs: Tool arguments.
+
+        Returns:
+            ToolResult from the MCP server.
+        """
+        try:
+            return self._executor(self.name, kwargs)
+        except Exception as e:
+            return ToolResult(False, "", f"MCP tool execution failed: {e}")
+
+    def format_confirmation(self, **kwargs: Any) -> str:
+        """Format confirmation message for MCP tool."""
+        args_str = "\n".join(f"  {k}: {v}" for k, v in kwargs.items())
+        return f"Execute MCP tool '{self.name}' from server '{self._server_name}':\n{args_str}"

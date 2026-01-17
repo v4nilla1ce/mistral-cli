@@ -1205,9 +1205,33 @@ def agent(
                         console.print("[yellow]Cancelled.[/]")
                     continue
 
+                elif cmd == "/plan":
+                    if not arg:
+                        # Enable planning mode for next request
+                        agent_instance.planning_mode = True
+                        console.print("[bold]Planning Mode Enabled[/]")
+                        console.print(
+                            "[dim]The next request will generate a detailed plan "
+                            "for your approval before execution.[/]"
+                        )
+                    else:
+                        # Execute with planning mode
+                        agent_instance.planning_mode = True
+                        console.print()
+                        try:
+                            agent_instance.run(arg)
+                        except KeyboardInterrupt:
+                            agent_instance.cancel()
+                            console.print("\n[yellow]Cancelled.[/]")
+                        except Exception as e:
+                            console.print(f"[red]Error: {e}[/]")
+                            logging.error(f"Agent error: {e}")
+                    continue
+
                 elif cmd == "/help":
                     console.print(
                         "[bold]Agent Commands:[/]\n"
+                        " /plan [task]               - Enable planning mode (generates plan first)\n"
                         " /tools                     - List available tools\n"
                         " /add [file]                - Add file to context\n"
                         " /remove <file>             - Remove file from context\n"
@@ -1220,7 +1244,12 @@ def agent(
                         "[bold]How it works:[/]\n"
                         "Simply describe what you want to do and the agent will\n"
                         "use tools to accomplish the task. You'll be asked to\n"
-                        "confirm any operations that modify files or run commands."
+                        "confirm any operations that modify files or run commands.\n"
+                        "\n"
+                        "[bold]Planning:[/]\n"
+                        "For complex tasks, use /plan to have the agent create\n"
+                        "a step-by-step plan before executing. This helps ensure\n"
+                        "alignment before any changes are made."
                     )
                     continue
 
@@ -1245,6 +1274,260 @@ def agent(
             continue
         except EOFError:
             break
+
+
+@cli.command("index")
+@click.argument("path", default=".", required=False)
+@click.option("--rebuild", is_flag=True, help="Force rebuild existing index.")
+def index_command(path: str, rebuild: bool):
+    """Build semantic search index for a project.
+
+    Indexes code files to enable semantic search in agent mode.
+    Requires: pip install mistral-cli[rag]
+
+    \b
+    Examples:
+        mistral index              # Index current directory
+        mistral index ./myproject  # Index specific path
+        mistral index --rebuild    # Force rebuild
+    """
+    from pathlib import Path as PathLib
+
+    from .knowledge import CodebaseIndex, Embedder
+
+    if not Embedder.is_available():
+        console.print(
+            "[red]sentence-transformers not installed.[/]\n"
+            "Install with: [bold]pip install mistral-cli[rag][/]"
+        )
+        return
+
+    project_path = PathLib(path).resolve()
+    if not project_path.exists():
+        console.print(f"[red]Path not found: {path}[/]")
+        return
+
+    if not project_path.is_dir():
+        console.print(f"[red]Path is not a directory: {path}[/]")
+        return
+
+    index = CodebaseIndex(str(project_path))
+
+    # Check existing index
+    stats = index.get_stats()
+    if stats and not rebuild:
+        console.print(
+            f"[yellow]Index already exists "
+            f"({stats['chunks']} chunks from {stats['files']} files)[/]"
+        )
+        if not click.confirm("Rebuild index?"):
+            return
+
+    console.print(f"[bold blue]Indexing {project_path}...[/]")
+
+    from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
+
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+        TimeElapsedColumn(),
+        console=console,
+    ) as progress:
+        task = progress.add_task("Indexing...", total=100)
+
+        def progress_callback(current: int, total: int, filename: str):
+            if total > 0:
+                progress.update(task, completed=(current / total) * 100)
+            progress.update(task, description=f"[{current}/{total}] {filename[:30]}")
+
+        try:
+            result = index.build(progress_callback=progress_callback)
+            progress.update(task, completed=100)
+        except Exception as e:
+            console.print(f"[red]Indexing failed: {e}[/]")
+            return
+
+    console.print()
+    console.print(
+        f"[green]Indexed {result['files_indexed']} files "
+        f"({result['chunks_created']} chunks)[/]"
+    )
+    console.print(f"[dim]Index stored at: {result['index_path']}[/]")
+    console.print(f"[dim]Time: {result['time_taken']:.1f}s[/]")
+
+
+# ============================================================================
+# MCP (Model Context Protocol) Commands
+# ============================================================================
+
+
+@cli.group()
+def mcp():
+    """Manage MCP (Model Context Protocol) servers.
+
+    MCP allows connecting to external tool servers that extend
+    the agent's capabilities.
+
+    \b
+    Examples:
+        mistral mcp list                    # List configured servers
+        mistral mcp add myserver -c cmd     # Add a server
+        mistral mcp test myserver           # Test connection
+        mistral mcp remove myserver         # Remove a server
+    """
+    pass
+
+
+@mcp.command("list")
+def mcp_list():
+    """List configured MCP servers."""
+    from .config import get_mcp_servers
+
+    servers = get_mcp_servers()
+    if not servers:
+        console.print("[dim]No MCP servers configured.[/]")
+        console.print("[dim]Use 'mistral mcp add' to add a server.[/]")
+        return
+
+    console.print("[bold]Configured MCP Servers:[/]\n")
+    for server in servers:
+        name = server.get("name", "unnamed")
+        transport = server.get("transport", "stdio")
+        if transport == "stdio":
+            target = " ".join(server.get("command", []))
+        else:
+            target = server.get("url", "")
+        console.print(f"  [bold cyan]{name}[/] ({transport})")
+        console.print(f"    [dim]{target}[/]")
+        if server.get("env"):
+            console.print(f"    [dim]env: {list(server['env'].keys())}[/]")
+
+
+@mcp.command("add")
+@click.argument("name")
+@click.option(
+    "--command",
+    "-c",
+    multiple=True,
+    help="Command to run (for stdio transport). Can be specified multiple times.",
+)
+@click.option("--url", "-u", help="Server URL (for SSE transport).")
+@click.option(
+    "--env",
+    "-e",
+    multiple=True,
+    help="Environment variable in KEY=VALUE format.",
+)
+def mcp_add(name: str, command: tuple, url: str, env: tuple):
+    """Add an MCP server configuration.
+
+    \b
+    Examples:
+        # Add a stdio-based server
+        mistral mcp add filesystem -c npx -c @anthropic/mcp-server-filesystem -c /tmp
+
+        # Add with environment variables
+        mistral mcp add myserver -c mycommand -e API_KEY=secret
+
+        # Add an SSE-based server (not yet implemented)
+        mistral mcp add remote --url http://localhost:8080/mcp
+    """
+    from .config import add_mcp_server
+
+    if command and url:
+        console.print("[red]Specify either --command or --url, not both.[/]")
+        return
+
+    if not command and not url:
+        console.print("[red]Must specify either --command or --url.[/]")
+        return
+
+    server_config: dict = {"name": name}
+
+    if command:
+        server_config["transport"] = "stdio"
+        server_config["command"] = list(command)
+    else:
+        server_config["transport"] = "sse"
+        server_config["url"] = url
+
+    # Parse environment variables
+    if env:
+        env_dict = {}
+        for e in env:
+            if "=" in e:
+                key, value = e.split("=", 1)
+                env_dict[key] = value
+            else:
+                console.print(f"[yellow]Invalid env format (use KEY=VALUE): {e}[/]")
+        if env_dict:
+            server_config["env"] = env_dict
+
+    success, msg = add_mcp_server(server_config)
+    color = "green" if success else "red"
+    console.print(f"[{color}]{msg}[/]")
+
+
+@mcp.command("remove")
+@click.argument("name")
+def mcp_remove(name: str):
+    """Remove an MCP server configuration."""
+    from .config import remove_mcp_server
+
+    success, msg = remove_mcp_server(name)
+    color = "green" if success else "red"
+    console.print(f"[{color}]{msg}[/]")
+
+
+@mcp.command("test")
+@click.argument("name")
+def mcp_test(name: str):
+    """Test connection to an MCP server.
+
+    Connects to the server, lists available tools, and disconnects.
+    """
+    from .config import get_mcp_server
+    from .mcp_client import MCPClient, MCPServerConfig
+
+    server_cfg = get_mcp_server(name)
+
+    if not server_cfg:
+        console.print(f"[red]Server '{name}' not found.[/]")
+        console.print("[dim]Use 'mistral mcp list' to see configured servers.[/]")
+        return
+
+    console.print(f"[dim]Testing connection to '{name}'...[/]")
+
+    config = MCPServerConfig(
+        name=server_cfg.get("name", name),
+        transport=server_cfg.get("transport", "stdio"),
+        command=server_cfg.get("command"),
+        url=server_cfg.get("url"),
+        env=server_cfg.get("env"),
+        timeout=server_cfg.get("timeout", 30),
+    )
+
+    client = MCPClient(config=config)
+
+    try:
+        if client.connect():
+            tools = client.get_tools()
+            console.print(f"[green]Connected successfully![/]")
+            console.print(f"\n[bold]Available tools ({len(tools)}):[/]")
+            for tool in tools:
+                desc = tool.description[:60]
+                if len(tool.description) > 60:
+                    desc += "..."
+                console.print(f"  [cyan]{tool.name}[/]")
+                console.print(f"    [dim]{desc}[/]")
+            client.disconnect()
+        else:
+            console.print(f"[red]Failed to connect to '{name}'[/]")
+            console.print("[dim]Check that the command is correct and the server is available.[/]")
+    except Exception as e:
+        console.print(f"[red]Connection error: {e}[/]")
 
 
 if __name__ == "__main__":
