@@ -12,7 +12,7 @@
         "difficulty": 1
     },
     {
-        "id": "2_file_cleanup",
+        "id": "2_file_cleanup_basic",
         "description": "Cleanup temporary files",
         "prompt": "Delete all .tmp files in the current directory",
         "setup_commands": [
@@ -54,179 +54,730 @@
         "difficulty": 2
     },
     {
-        "id": "5_json_processing",
-        "description": "Read JSON and extract field",
-        "prompt": "Read data.json and print the value of 'version'",
+        "id": "5_json_read_write",
+        "description": "Read JSON, modify, and write back",
+        "prompt": "Read data.json, increment the 'run_count' field by 1, and save it back.",
         "setup_files": {
-            "data.json": "{\"name\": \"test\", \"version\": \"1.0.0\"}"
+            "data.json": "{\"run_count\": 5}"
         },
-        "expected_files": [],
+        "expected_content": {
+            "data.json": "\"run_count\": 6"
+        },
         "difficulty": 2
     },
     {
-        "id": "6_move_images",
-        "description": "Move image files to a directory",
-        "prompt": "Create an 'images' directory and move all .jpg files into it",
+        "id": "6_move_files",
+        "description": "Move specific files to a subdirectory",
+        "prompt": "Move all .log files to a 'logs' directory (create it if needed).",
         "setup_commands": [
-            "touch photo1.jpg",
-            "touch photo2.jpg",
-            "touch notes.txt"
+            "touch a.log",
+            "touch b.log",
+            "touch c.txt"
         ],
         "expected_files": [
-            "images/photo1.jpg",
-            "images/photo2.jpg",
-            "notes.txt"
+            "logs/a.log",
+            "logs/b.log",
+            "c.txt"
         ],
         "expected_missing_files": [
-            "photo1.jpg",
-            "photo2.jpg"
+            "a.log",
+            "b.log"
         ],
         "difficulty": 2
     },
     {
-        "id": "7_count_lines",
-        "description": "Count lines in a file",
-        "prompt": "Create a script count.py that prints the number of lines in input.txt",
+        "id": "7_line_counter",
+        "description": "Python script to count lines",
+        "prompt": "Write count.py to print the number of lines in 'input.txt'",
         "setup_files": {
-            "input.txt": "Line 1\nLine 2\nLine 3"
+            "input.txt": "1\n2\n3"
         },
         "expected_files": [
             "count.py"
         ],
-        "difficulty": 2
+        "difficulty": 1
     },
     {
-        "id": "8_class_creation",
-        "description": "Create a simple User class",
-        "prompt": "Create user.py with a User class having name and email attributes",
-        "expected_files": [
-            "user.py"
-        ],
+        "id": "8_class_def",
+        "description": "Define a simple Python class",
+        "prompt": "Create user.py defining a class User with __init__ taking name and email.",
         "expected_content": {
             "user.py": "class User"
         },
         "difficulty": 1
     },
     {
-        "id": "9_environment_variable",
-        "description": "Read env var",
-        "prompt": "Create env_check.py that prints the value of TEST_VAR",
+        "id": "9_env_var_print",
+        "description": "Print an environment variable",
+        "prompt": "Create a script that prints the value of 'MY_ENV_VAR'.",
         "expected_files": [
-            "env_check.py"
-        ],
-        "expected_content": {
-            "env_check.py": "os.environ"
-        },
-        "difficulty": 2
+            "env_print.py"
+        ], # Assuming agent names it reasonably or we check any py file
+       "difficulty": 1
     },
     {
         "id": "10_csv_to_json",
         "description": "Convert CSV to JSON",
-        "prompt": "Convert data.csv to data.json",
+        "prompt": "Convert input.csv to output.json",
         "setup_files": {
-            "data.csv": "id,name\n1,Alice\n2,Bob"
+            "input.csv": "id,val\n1,a\n2,b"
         },
         "expected_files": [
-            "data.json"
+            "output.json"
         ],
-        "expected_content": {
-            "data.json": "[{\"id\": \"1\", \"name\": \"Alice\"}, {\"id\": \"2\", \"name\": \"Bob\"}]"
-        },
-        "difficulty": 3
+        "difficulty": 2
     },
     {
         "id": "11_find_todos",
-        "description": "Find TODO comments",
-        "prompt": "List all lines containing 'TODO' in src/main.py",
+        "description": "Find TODO comments in code",
+        "prompt": "List all lines containing 'TODO' in app.py",
         "setup_files": {
-            "src/main.py": "# TODO: Fix this\nprint('code')\n# TODO: Add feature"
+            "app.py": "# TODO: fix\nprint('hi')"
         },
         "difficulty": 2
     },
     {
         "id": "12_create_readme",
-        "description": "Create a README file",
-        "prompt": "Create a README.md with the title 'Project X'",
+        "description": "Create a standard README",
+        "prompt": "Create a README.md with title 'My Project'",
         "expected_files": [
             "README.md"
         ],
         "expected_content": {
-            "README.md": "# Project X"
+            "README.md": "# My Project"
         },
         "difficulty": 1
     },
     {
-        "id": "13_list_python_files",
-        "description": "List python files",
-        "prompt": "List all .py files in the current directory",
+        "id": "13_list_extension",
+        "description": "List files by extension",
+        "prompt": "List all .md files in current dir",
         "setup_commands": [
-            "touch a.py",
-            "touch b.py",
-            "touch c.txt"
+            "touch README.md",
+            "touch note.md",
+            "touch script.py"
         ],
         "difficulty": 1
     },
     {
-        "id": "14_check_dependencies",
-        "description": "Check if requests is installed",
-        "prompt": "Check if the 'requests' library is installed",
-        "difficulty": 2
+        "id": "14_check_pkg_install",
+        "description": "Check for a package installation",
+        "prompt": "Check if numpy is installed",
+        "difficulty": 1
     },
     {
-        "id": "15_write_function_docstring",
-        "description": "Add docstring to function",
-        "prompt": "Add a docstring to the add function in calc.py",
+        "id": "15_add_docstring",
+        "description": "Add docstring to existing function",
+        "prompt": "Add a docstring to 'process_data' in utils.py",
         "setup_files": {
-            "calc.py": "def add(a, b):\n    return a + b"
+            "utils.py": "def process_data(d):\n    return d*2"
         },
         "expected_content": {
-            "calc.py": "\"\"\""
+            "utils.py": "\"\"\""
         },
         "difficulty": 2
     },
     {
-        "id": "16_create_flask_app",
-        "description": "Create a minimal Flask app",
-        "prompt": "Create app.py with a basic Flask 'hello world' route",
-        "expected_files": [
-            "app.py"
-        ],
+        "id": "16_basic_flask",
+        "description": "Create minimal Flask app",
+        "prompt": "Create app.py with a generic Flask route /",
         "expected_content": {
             "app.py": "Flask(__name__)"
         },
-        "difficulty": 3
-    },
-    {
-        "id": "17_sort_list",
-        "description": "Sort a list of numbers",
-        "prompt": "Create sort_nums.py to sort [5, 2, 9, 1] and print it",
-        "expected_files": [
-            "sort_nums.py"
-        ],
         "difficulty": 2
     },
     {
-        "id": "18_regex_email",
-        "description": "Validate email with regex",
-        "prompt": "Create validator.py with a function is_valid_email(email)",
-        "expected_files": [
-            "validator.py"
-        ],
+        "id": "17_sort_list",
+        "description": "Sort numbers script",
+        "prompt": "Write a script that sorts a list of numbers [3,1,2] and prints it.",
+        "difficulty": 1
+    },
+    {
+        "id": "18_regex_validator",
+        "description": "Regex email validation function",
+        "prompt": "Create validate.py with function is_valid_email using regex.",
         "expected_content": {
-            "validator.py": "re.match"
+            "validate.py": "import re"
+        },
+        "difficulty": 2
+    },
+    {
+        "id": "19_mock_download",
+        "description": "Simulate file download",
+        "prompt": "Create a script downloader.py that simulates downloading from a URL (print 'Downloaded').",
+        "expected_files": [
+            "downloader.py"
+        ],
+        "difficulty": 1
+    },
+    {
+        "id": "20_get_os_info",
+        "description": "Print OS name",
+        "prompt": "Print the current operating system name using python.",
+        "difficulty": 1
+    },
+    {
+        "id": "21_complex_refactor_class",
+        "description": "Extract class from functions (Complex)",
+        "prompt": "Refactor data_processor.py. It has functions `connect_db`, `fetch_data`, `close_db` relying on global `db_conn`. encapsulate them into a `Database` class.",
+        "setup_files": {
+            "data_processor.py": "db_conn = None\ndef connect_db():\n    global db_conn\n    db_conn = 'connected'\ndef fetch_data():\n    return 'data'\ndef close_db():\n    global db_conn\n    db_conn = None"
+        },
+        "expected_content": {
+            "data_processor.py": "class Database"
+        },
+        "difficulty": 4
+    },
+    {
+        "id": "22_complex_debug_logic",
+        "description": "Fix subtle logic bug (off-by-one)",
+        "prompt": "Fix the off-by-one error in search_algo.py where the last element is ignored.",
+        "setup_files": {
+            "search_algo.py": "def search(lst, target):\n    for i in range(len(lst) - 1):\n        if lst[i] == target:\n            return i\n    return -1"
+        },
+        "expected_content": {
+            "search_algo.py": "range(len(lst))"
+        },
+        "difficulty": 4
+    },
+    {
+        "id": "23_complex_scaffold_project",
+        "description": "Scaffold full project structure",
+        "prompt": "Create a standard python project structure: src/pkg/__init__.py, tests/__init__.py, setup.py, README.md",
+        "expected_files": [
+            "src/pkg/__init__.py",
+            "tests/__init__.py",
+            "setup.py",
+            "README.md"
+        ],
+        "difficulty": 5
+    },
+    {
+        "id": "24_complex_merge_conflict_sim",
+        "description": "Resolve mock merge conflict content",
+        "prompt": "In conflict.txt, resolve the git merge conflict, keeping both changes combined.",
+        "setup_files": {
+            "conflict.txt": "<<<<<<< HEAD\nVersion A\n=======\nVersion B\n>>>>>>> feature"
+        },
+        "expected_content": {
+            "conflict.txt": "Version A\nVersion B"
+        },
+        "difficulty": 4
+    },
+    {
+        "id": "25_complex_api_client",
+        "description": "Implement API Client Class",
+        "prompt": "Create api_client.py with a class `Client` having a `get(url)` method using requests. Handle exceptions.",
+        "expected_content": {
+            "api_client.py": "try:"
+        },
+        "difficulty": 4
+    },
+    {
+        "id": "26_complex_data_analysis",
+        "description": "Analyze CSV with multiple steps",
+        "prompt": "Read sales.csv, calculate total sales per region, and write to report.txt",
+        "setup_files": {
+            "sales.csv": "region,amount\nUS,100\nEU,50\nUS,20"
+        },
+        "expected_content": {
+            "report.txt": "US: 120"
+        },
+        "difficulty": 4
+    },
+    {
+        "id": "27_complex_argparse",
+        "description": "CLI tool with arguments",
+        "prompt": "Create cli_tool.py using argparse. It should accept --input and --verbose flags.",
+        "expected_content": {
+            "cli_tool.py": "add_argument('--input'"
         },
         "difficulty": 3
     },
     {
-        "id": "19_download_file",
-        "description": "Mock download file",
-        "prompt": "Create a script that simulates downloading from a URL (just print 'Downloaded')",
+        "id": "28_complex_multithreading",
+        "description": "Use threading",
+        "prompt": "Create threaded_task.py that runs a function in a separate thread.",
+        "expected_content": {
+            "threaded_task.py": "threading.Thread"
+        },
+        "difficulty": 4
+    },
+    {
+        "id": "29_complex_decorator",
+        "description": "Implement a timing decorator",
+        "prompt": "Create decorator.py with a `@timeit` decorator that prints execution time.",
+        "expected_content": {
+            "decorator.py": "def wrapper"
+        },
+        "difficulty": 4
+    },
+    {
+        "id": "30_complex_generator",
+        "description": "Implement a generator for large data",
+        "prompt": "Create generator.py with a function `stream_lines(file)` that yields lines.",
+        "expected_content": {
+            "generator.py": "yield"
+        },
+        "difficulty": 3
+    },
+    {
+        "id": "31_complex_dependency_injection",
+        "description": "Refactor for DI",
+        "prompt": "Refactor service.py to accept `database` as an init argument instead of creating it inside.",
+        "setup_files": {
+            "service.py": "class Service:\n    def __init__(self):\n        self.db = Database()"
+        },
+        "expected_content": {
+            "service.py": "__init__(self, database)"
+        },
+        "difficulty": 4
+    },
+    {
+        "id": "32_complex_sql_query",
+        "description": "Construct SQL query string",
+        "prompt": "Create query_builder.py. Function `build_query(table, **conditions)` should return 'SELECT * FROM table WHERE k=v...'",
+        "difficulty": 4
+    },
+    {
+        "id": "33_complex_html_parse",
+        "description": "Extract links from HTML regex",
+        "prompt": "Extract all href attributes from index.html using regex and print them.",
+        "setup_files": {
+            "index.html": "<a href='http://a.com'>A</a>"
+        },
+        "difficulty": 3
+    },
+    {
+        "id": "34_complex_binary_search",
+        "description": "Implement binary search",
+        "prompt": "Create binary_search.py with a standard binary search implementation.",
+        "difficulty": 3
+    },
+    {
+        "id": "35_complex_memoization",
+        "description": "Added memoization to fibonacci",
+        "prompt": "Add caching/memoization to the fib function in math_lib.py",
+        "setup_files": {
+            "math_lib.py": "def fib(n):\n    if n<=1: return n\n    return fib(n-1)+fib(n-2)"
+        },
+        "expected_content": {
+            "math_lib.py": "cache"
+        },
+        "difficulty": 4
+    },
+    {
+        "id": "36_complex_context_manager",
+        "description": "Custom context manager",
+        "prompt": "Implement a 'Timer' context manager in timer.py that prints duration on exit.",
+        "expected_content": {
+            "timer.py": "__enter__"
+        },
+        "difficulty": 4
+    },
+    {
+        "id": "37_complex_async_await",
+        "description": "Async function usage",
+        "prompt": "Create async_fetch.py with an async function using asyncio.sleep to simulate delay.",
+        "expected_content": {
+            "async_fetch.py": "async def"
+        },
+        "difficulty": 3
+    },
+    {
+        "id": "38_complex_linked_list",
+        "description": "Implement Linked List Node",
+        "prompt": "Create `Node` class for a linked list in structs.py.",
+        "difficulty": 3
+    },
+    {
+        "id": "39_complex_singleton",
+        "description": "Implement Singleton Pattern",
+        "prompt": "Implement a Singleton class in config_loader.py.",
+        "difficulty": 4
+    },
+    {
+        "id": "40_complex_parse_logs",
+        "description": "Parse specific log format",
+        "prompt": "Parse logs.txt. Lines format: 'TIMESTAMP [LEVEL] MSG'. Print only ERROR messages.",
+        "setup_files": {
+            "logs.txt": "12:00 [INFO] ok\n12:01 [ERROR] fail"
+        },
+        "difficulty": 3
+    },
+    {
+        "id": "41_simple_variable",
+        "description": "Assign variable",
+        "prompt": "Create var.py setting x=10",
         "difficulty": 1
     },
     {
-        "id": "20_system_info",
-        "description": "Get system platform",
-        "prompt": "Print the current OS name",
+        "id": "42_simple_print",
+        "description": "Print string",
+        "prompt": "Create script.py printing 'mistral'",
         "difficulty": 1
+    },
+    {
+        "id": "43_simple_import",
+        "description": "Import math",
+        "prompt": "Create m.py importing math module",
+        "difficulty": 1
+    },
+    {
+        "id": "44_simple_comment",
+        "description": "Add comment",
+        "prompt": "Add a comment # Test to file.py",
+        "setup_files": {
+            "file.py": "x=1"
+        },
+        "difficulty": 1
+    },
+    {
+        "id": "45_simple_return",
+        "description": "Return True",
+        "prompt": "Write func returning True in f.py",
+        "difficulty": 1
+    },
+    {
+        "id": "46_simple_list_append",
+        "description": "Append to list",
+        "prompt": "Write script appending 1 to a list",
+        "difficulty": 1
+    },
+    {
+        "id": "47_simple_dict_access",
+        "description": "Access dict key",
+        "prompt": "Write script to print dict['key']",
+        "difficulty": 1
+    },
+    {
+        "id": "48_simple_string_concat",
+        "description": "Concat strings",
+        "prompt": "Write script joining 'a' and 'b'",
+        "difficulty": 1
+    },
+    {
+        "id": "49_simple_if_else",
+        "description": "Basic conditional",
+        "prompt": "Write script with if/else block",
+        "difficulty": 1
+    },
+    {
+        "id": "50_simple_loop",
+        "description": "For loop range",
+        "prompt": "Write script iterating range(5)",
+        "difficulty": 1
+    },
+    {
+        "id": "51_check_file_exists",
+        "description": "Check file path",
+        "prompt": "Write script checking if 'config.ini' exists",
+        "difficulty": 2
+    },
+    {
+        "id": "52_read_lines",
+        "description": "Readlines usage",
+        "prompt": "Read all lines from f.txt into list",
+        "setup_files": {
+            "f.txt": "a\nb"
+        },
+        "difficulty": 2
+    },
+    {
+        "id": "53_write_lines",
+        "description": "Writelines usage",
+        "prompt": "Write list ['a','b'] to lines.txt",
+        "difficulty": 2
+    },
+    {
+        "id": "54_path_join",
+        "description": "os.path.join",
+        "prompt": "Use os.path.join to create path 'a/b'",
+        "difficulty": 2
+    },
+    {
+        "id": "55_random_int",
+        "description": "Random integer",
+        "prompt": "Generate random int between 1-10",
+        "difficulty": 2
+    },
+    {
+        "id": "56_datetime_now",
+        "description": "Get current time",
+        "prompt": "Print current datetime",
+        "difficulty": 2
+    },
+    {
+        "id": "57_sleep_1s",
+        "description": "Sleep",
+        "prompt": "Sleep for 1 second",
+        "difficulty": 2
+    },
+    {
+        "id": "58_json_dump",
+        "description": "Serialize JSON",
+        "prompt": "Dump dict to json string",
+        "difficulty": 2
+    },
+    {
+        "id": "59_subprocess_run",
+        "description": "Run shell command",
+        "prompt": "Use subprocess to run 'echo hi'",
+        "difficulty": 2
+    },
+    {
+        "id": "60_argparse_simple",
+        "description": "Simple arg",
+        "prompt": "Argparse script accepting --name",
+        "difficulty": 2
+    },
+    {
+        "id": "61_mkdir_safe",
+        "description": "Mkdir exist_ok",
+        "prompt": "Create dir 'data' safely",
+        "difficulty": 2
+    },
+    {
+        "id": "62_remove_file_safe",
+        "description": "Remove if exists",
+        "prompt": "Remove file only if it exists logic",
+        "difficulty": 2
+    },
+    {
+        "id": "63_copy_file",
+        "description": "Shutil copy",
+        "prompt": "Copy a.txt to b.txt",
+        "setup_files": {
+            "a.txt": "1"
+        },
+        "difficulty": 2
+    },
+    {
+        "id": "64_glob_usage",
+        "description": "Glob pattern",
+        "prompt": "Find all *.py files using glob",
+        "difficulty": 2
+    },
+    {
+        "id": "65_math_sqrt",
+        "description": "Square root",
+        "prompt": "Calculate sqrt of 16",
+        "difficulty": 1
+    },
+    {
+        "id": "66_str_upper",
+        "description": "String uppercase",
+        "prompt": "Convert input string to uppercase",
+        "difficulty": 1
+    },
+    {
+        "id": "67_str_split",
+        "description": "String split",
+        "prompt": "Split string by comma",
+        "difficulty": 1
+    },
+    {
+        "id": "68_list_comprehension",
+        "description": "Basic list comp",
+        "prompt": "Create list of squares [1,4,9] using comprehension",
+        "difficulty": 2
+    },
+    {
+        "id": "69_dict_comprehension",
+        "description": "Basic dict comp",
+        "prompt": "Create dict {1:1, 2:4} via comprehension",
+        "difficulty": 2
+    },
+    {
+        "id": "70_set_unique",
+        "description": "Unique list elements",
+        "prompt": "Get unique elements from list [1,1,2]",
+        "difficulty": 1
+    },
+    {
+        "id": "71_try_except",
+        "description": "Catch exception",
+        "prompt": "Catch ZeroDivisionError block",
+        "difficulty": 2
+    },
+    {
+        "id": "72_raise_error",
+        "description": "Raise exception",
+        "prompt": "Raise ValueError if x < 0",
+        "difficulty": 2
+    },
+    {
+        "id": "73_lambda_func",
+        "description": "Lambda usage",
+        "prompt": "Create lambda adding 1",
+        "difficulty": 2
+    },
+    {
+        "id": "74_map_func",
+        "description": "Map usage",
+        "prompt": "Use map to double list items",
+        "difficulty": 2
+    },
+    {
+        "id": "75_filter_func",
+        "description": "Filter usage",
+        "prompt": "Filter even numbers from list",
+        "difficulty": 2
+    },
+    {
+        "id": "76_file_read_context",
+        "description": "With open read",
+        "prompt": "Read file using 'with open'",
+        "setup_files": {
+            "t.txt": "1"
+        },
+        "difficulty": 2
+    },
+    {
+        "id": "77_file_write_context",
+        "description": "With open write",
+        "prompt": "Write to file using 'with open'",
+        "difficulty": 2
+    },
+    {
+        "id": "78_class_inheritance",
+        "description": "Simple inheritance",
+        "prompt": "Create class Dog inheriting Animal",
+        "difficulty": 2
+    },
+    {
+        "id": "79_method_override",
+        "description": "Override method",
+        "prompt": "Override speak method in subclass",
+        "difficulty": 2
+    },
+    {
+        "id": "80_super_init",
+        "description": "Super call",
+        "prompt": "Call super().__init__",
+        "difficulty": 2
+    },
+    {
+        "id": "81_complex_custom_exception",
+        "description": "Define exception",
+        "prompt": "Define class MyError(Exception)",
+        "difficulty": 3
+    },
+    {
+        "id": "82_complex_iter_class",
+        "description": "Iterator class",
+        "prompt": "Implement __iter__ and __next__",
+        "difficulty": 3
+    },
+    {
+        "id": "83_complex_magic_method",
+        "description": "__str__ impl",
+        "prompt": "Implement __str__ for a class",
+        "difficulty": 3
+    },
+    {
+        "id": "84_complex_descriptor",
+        "description": "Python descriptor",
+        "prompt": "Implement a simple descriptor class using __get__",
+        "difficulty": 4
+    },
+    {
+        "id": "85_complex_metaclass",
+        "description": "Simple metaclass",
+        "prompt": "Create a Meta class inheriting type",
+        "difficulty": 5
+    },
+    {
+        "id": "86_complex_abstract_base",
+        "description": "ABC usage",
+        "prompt": "Create abstract base class with abstractmethod",
+        "difficulty": 4
+    },
+    {
+        "id": "87_complex_property",
+        "description": "@property decorator",
+        "prompt": "Use @property and @setter",
+        "difficulty": 3
+    },
+    {
+        "id": "88_complex_slots",
+        "description": "__slots__ usage",
+        "prompt": "Define __slots__ in class",
+        "difficulty": 3
+    },
+    {
+        "id": "89_complex_dataclass",
+        "description": "Dataclass usage",
+        "prompt": "Create a frozen dataclass",
+        "difficulty": 3
+    },
+    {
+        "id": "90_complex_type_alias",
+        "description": "TypeAlias",
+        "prompt": "Define a TypeAlias for List[Dict[str, Any]]",
+        "difficulty": 3
+    },
+    {
+        "id": "91_complex_logging_setup",
+        "description": "Configure logging",
+        "prompt": "Configure logging to write to file.log with DEBUG level",
+        "difficulty": 3
+    },
+    {
+        "id": "92_complex_unittest_mock",
+        "description": "Mock object",
+        "prompt": "Use unittest.mock.MagicMock in a test",
+        "difficulty": 4
+    },
+    {
+        "id": "93_complex_pytest_fixture",
+        "description": "Pytest fixture",
+        "prompt": "Create a conftest.py with a shared fixture",
+        "difficulty": 4
+    },
+    {
+        "id": "94_complex_setup_py",
+        "description": "Write setup.py",
+        "prompt": "Create a setup.py for a package named 'foo'",
+        "difficulty": 4
+    },
+    {
+        "id": "95_complex_requirements_txt",
+        "description": "Parse reqs file",
+        "prompt": "Read requirements.txt and list packages",
+        "setup_files": {
+            "requirements.txt": "numpy\npandas"
+        },
+        "difficulty": 3
+    },
+    {
+        "id": "96_complex_http_server",
+        "description": "Simple HTTP Server",
+        "prompt": "Create script to run http.server on port 8000",
+        "difficulty": 3
+    },
+    {
+        "id": "97_complex_socket_client",
+        "description": "Socket connection",
+        "prompt": "Create socket client connecting to localhost:80",
+        "difficulty": 4
+    },
+    {
+        "id": "98_complex_futures",
+        "description": "ThreadPoolExecutor",
+        "prompt": "Use ThreadPoolExecutor to run tasks",
+        "difficulty": 4
+    },
+    {
+        "id": "99_complex_process_pool",
+        "description": "ProcessPoolExecutor",
+        "prompt": "Use ProcessPoolExecutor",
+        "difficulty": 4
+    },
+    {
+        "id": "100_complex_profiling",
+        "description": "cProfile usage",
+        "prompt": "Profile a function using cProfile module",
+        "difficulty": 3
     }
 ]

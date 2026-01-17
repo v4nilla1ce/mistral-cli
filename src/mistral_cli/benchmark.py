@@ -172,3 +172,16 @@ class BenchmarkRunner:
 
         console.print(table)
         console.print(f"\nTotal: {len(self.results)}, Passed: {passed}, Failed: {len(self.results) - passed}")
+
+        # GitHub Summary
+        step_summary = os.getenv("GITHUB_STEP_SUMMARY")
+        if step_summary:
+            with open(step_summary, "a", encoding="utf-8") as f:
+                f.write("## Agent Benchmark Results\n\n")
+                f.write(f"**Total:** {len(self.results)} | **Passed:** {passed} | **Failed:** {len(self.results) - passed}\n\n")
+                f.write("| Task ID | Status | Time | Error |\n")
+                f.write("| :--- | :--- | :--- | :--- |\n")
+                for r in self.results:
+                    status = "✅ PASS" if r.success else "❌ FAIL"
+                    error = r.error or "-"
+                    f.write(f"| `{r.task_id}` | {status} | {r.duration:.2f}s | {error} |\n")
