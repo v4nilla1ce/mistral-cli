@@ -173,3 +173,79 @@ def get_default_model() -> str:
     """
     config = load_config()
     return config.get("default_model", "mistral-small")
+
+
+def get_profiles_dir() -> Path:
+    """Get the directory for conversation profiles."""
+    profiles_dir = get_data_dir() / "profiles"
+    profiles_dir.mkdir(parents=True, exist_ok=True)
+    return profiles_dir
+
+
+def save_profile(name: str, profile_data: dict[str, Any]) -> tuple[bool, str]:
+    """Save a conversation profile.
+
+    Args:
+        name: Profile name.
+        profile_data: Dict with 'system_prompt', 'files', 'model' keys.
+
+    Returns:
+        Tuple of (success, message).
+    """
+    try:
+        profile_path = get_profiles_dir() / f"{name}.json"
+        with open(profile_path, "w", encoding="utf-8") as f:
+            json.dump(profile_data, f, indent=2)
+        return True, f"Profile saved: {name}"
+    except Exception as e:
+        return False, f"Failed to save profile: {e}"
+
+
+def load_profile(name: str) -> tuple[bool, Optional[dict[str, Any]], str]:
+    """Load a conversation profile.
+
+    Args:
+        name: Profile name to load.
+
+    Returns:
+        Tuple of (success, profile_data, message).
+    """
+    try:
+        profile_path = get_profiles_dir() / f"{name}.json"
+        if not profile_path.exists():
+            return False, None, f"Profile not found: {name}"
+
+        with open(profile_path, "r", encoding="utf-8") as f:
+            profile_data = json.load(f)
+        return True, profile_data, f"Profile loaded: {name}"
+    except Exception as e:
+        return False, None, f"Failed to load profile: {e}"
+
+
+def list_profiles() -> list[str]:
+    """List all saved profiles.
+
+    Returns:
+        List of profile names.
+    """
+    profiles_dir = get_profiles_dir()
+    return [p.stem for p in profiles_dir.glob("*.json")]
+
+
+def delete_profile(name: str) -> tuple[bool, str]:
+    """Delete a conversation profile.
+
+    Args:
+        name: Profile name to delete.
+
+    Returns:
+        Tuple of (success, message).
+    """
+    try:
+        profile_path = get_profiles_dir() / f"{name}.json"
+        if not profile_path.exists():
+            return False, f"Profile not found: {name}"
+        profile_path.unlink()
+        return True, f"Profile deleted: {name}"
+    except Exception as e:
+        return False, f"Failed to delete profile: {e}"

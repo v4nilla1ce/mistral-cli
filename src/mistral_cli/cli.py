@@ -2,6 +2,7 @@
 
 import difflib
 import logging
+import os
 import re
 import shutil
 from datetime import datetime
@@ -11,7 +12,6 @@ from typing import Optional
 
 import click
 from prompt_toolkit import PromptSession
-from prompt_toolkit.completion import PathCompleter, WordCompleter
 from prompt_toolkit.formatted_text import HTML
 from prompt_toolkit.shortcuts import radiolist_dialog
 from rich.console import Console
@@ -19,12 +19,30 @@ from rich.live import Live
 from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.syntax import Syntax
+from rich.tree import Tree
 
 from . import __version__
 from .api import MistralAPI
-from rich.tree import Tree
+
+
+def is_ci_environment() -> bool:
+    """Detect if running in a CI/CD environment."""
+    ci_env_vars = [
+        "CI",
+        "CONTINUOUS_INTEGRATION",
+        "GITHUB_ACTIONS",
+        "GITLAB_CI",
+        "CIRCLECI",
+        "TRAVIS",
+        "JENKINS_URL",
+        "BUILDKITE",
+        "TF_BUILD",  # Azure DevOps
+        "CODEBUILD_BUILD_ID",  # AWS CodeBuild
+    ]
+    return any(os.environ.get(var) for var in ci_env_vars)
 
 from .config import (
+    delete_profile,
     ensure_dirs,
     get_api_key,
     get_backup_dir,
@@ -32,8 +50,11 @@ from .config import (
     get_config_source,
     get_log_dir,
     get_system_prompt,
+    list_profiles,
     load_config,
+    load_profile,
     save_config,
+    save_profile,
     set_system_prompt,
 )
 from .backup import add_backup_entry, get_last_backup, list_backups, restore_backup
@@ -48,7 +69,9 @@ logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(message)s",
 )
 
-console = Console()
+# CI-aware console: disable interactive features in CI environments
+_is_ci = is_ci_environment()
+console = Console(force_terminal=not _is_ci if _is_ci else None)
 
 
 def interactive_file_picker(cwd: str = ".") -> Optional[str]:
@@ -301,6 +324,134 @@ def config_show():
         console.print("[bold yellow]API key:[/] Not configured")
         console.print()
         console.print("[dim]Run 'mistral config setup' to configure your API key.[/]")
+
+
+@cli.command("completions")
+@click.argument("shell", type=click.Choice(["bash", "zsh", "fish", "powershell"]))
+@click.option("--install", is_flag=True, help="Install completions to shell config file.")
+def completions(shell: str, install: bool):
+    """Generate or install shell completions.
+
+    Supported shells: bash, zsh, fish, powershell
+    """
+    # Shell-specific completion configuration
+    if shell == "bash":
+        install_path = Path.home() / ".bashrc"
+        install_line = 'eval "$(_MISTRAL_COMPLETE=bash_source mistral)"'
+    elif shell == "zsh":
+        install_path = Path.home() / ".zshrc"
+        install_line = 'eval "$(_MISTRAL_COMPLETE=zsh_source mistral)"'
+    elif shell == "fish":
+        install_path = Path.home() / ".config" / "fish" / "completions" / "mistral.fish"
+        install_line = '_MISTRAL_COMPLETE=fish_source mistral | source'
+    elif shell == "powershell":
+        # PowerShell profile path
+        install_path = Path.home() / "Documents" / "PowerShell" / "Microsoft.PowerShell_profile.ps1"
+        install_line = 'Invoke-Expression ((mistral completions powershell) -join "`n")'
+
+    if install:
+        try:
+            # For fish, create the completions directory if needed
+            if shell == "fish":
+                install_path.parent.mkdir(parents=True, exist_ok=True)
+                # Write the completion script directly
+                with open(install_path, "w", encoding="utf-8") as f:
+                    f.write(f"# Mistral CLI completions\n{install_line}\n")
+                console.print(f"[green]Completions installed to {install_path}[/]")
+            else:
+                # Check if already installed
+                if install_path.exists():
+                    with open(install_path, "r", encoding="utf-8") as f:
+                        content = f.read()
+                    if "MISTRAL_COMPLETE" in content:
+                        console.print(f"[yellow]Completions already installed in {install_path}[/]")
+                        return
+
+                # Append to shell config
+                with open(install_path, "a", encoding="utf-8") as f:
+                    f.write(f"\n# Mistral CLI completions\n{install_line}\n")
+                console.print(f"[green]Completions installed to {install_path}[/]")
+                console.print(f"[dim]Restart your shell or run: source {install_path}[/]")
+        except Exception as e:
+            console.print(f"[red]Failed to install completions: {e}[/]")
+            console.print(f"[dim]Manual installation: Add this to your shell config:[/]")
+            console.print(f"  {install_line}")
+    else:
+        # Just print the activation command
+        console.print(f"[bold]To enable completions for {shell}:[/]")
+        console.print()
+        console.print(f"  {install_line}")
+        console.print()
+        console.print(f"[dim]Or run: mistral completions {shell} --install[/]")
+
+
+@cli.command("review")
+@click.argument("file")
+@click.option("--model", default="mistral-small", help="Mistral model to use.")
+@click.option("--api-key", envvar="MISTRAL_API_KEY", help="Mistral API key.")
+def review(file: str, model: str, api_key: str):
+    """Review code quality without applying fixes.
+
+    Analyzes the file and provides feedback on code quality, potential issues,
+    and improvement suggestions without making any changes.
+    """
+    logging.info(f"Started review command for file: {file}")
+
+    try:
+        path = Path(file)
+        if not path.exists():
+            console.print(f"[red]File not found: {file}[/]")
+            return
+
+        with open(path, "r", encoding="utf-8") as f:
+            content = f.read()
+
+        # Build review-specific prompt
+        review_prompt = f"""You are a senior code reviewer. Analyze the following code and provide a detailed review.
+
+File: {file}
+
+```
+{content}
+```
+
+Please provide:
+1. **Code Quality Assessment** (1-10 scale with brief justification)
+2. **Potential Issues** (bugs, security vulnerabilities, edge cases)
+3. **Style & Best Practices** (naming, structure, documentation)
+4. **Performance Considerations** (if applicable)
+5. **Suggested Improvements** (specific, actionable recommendations)
+
+Be constructive and specific. Do not include fixed code unless necessary to illustrate a point."""
+
+        from .tokens import count_tokens
+        token_count = count_tokens(review_prompt)
+        console.print(f"[dim]Reviewing {file} ({token_count} tokens)...[/]")
+
+        api = MistralAPI(api_key=api_key)
+
+        # Stream the review
+        console.print()
+        full_response = ""
+        with Live(Markdown(""), refresh_per_second=10, console=console) as live:
+            try:
+                stream = api.chat(review_prompt, model=model, stream=True)
+                if isinstance(stream, list):
+                    full_response = stream[0]
+                    live.update(Markdown(full_response))
+                else:
+                    for chunk in stream:
+                        full_response += chunk
+                        live.update(Markdown(full_response))
+            except Exception as e:
+                console.print(f"[red]Error during review: {e}[/]")
+                return
+
+        logging.info(f"Review completed for {file}")
+
+    except Exception as e:
+        console.print(f"[bold red]Error: {e}[/]")
+        logging.error(f"Review error: {e}")
 
 
 @cli.command()
@@ -690,6 +841,83 @@ def chat(model: str, api_key: str):
                         console.print("[green]System prompt updated.[/]")
                     continue
 
+                elif cmd == "/profile":
+                    # Manage conversation profiles
+                    if not arg:
+                        # List profiles
+                        profiles = list_profiles()
+                        if not profiles:
+                            console.print("[dim]No saved profiles.[/]")
+                        else:
+                            console.print("[bold]Saved Profiles:[/]")
+                            for p in profiles:
+                                console.print(f" - {p}")
+                        console.print()
+                        console.print("[dim]Usage:[/]")
+                        console.print("  /profile save <name>   - Save current context as profile")
+                        console.print("  /profile load <name>   - Load a profile")
+                        console.print("  /profile delete <name> - Delete a profile")
+                        continue
+
+                    parts = arg.split(maxsplit=1)
+                    subcmd = parts[0].lower()
+                    profile_name = parts[1] if len(parts) > 1 else None
+
+                    if subcmd == "save":
+                        if not profile_name:
+                            console.print("[red]Usage: /profile save <name>[/]")
+                            continue
+                        # Save current context as profile
+                        profile_data = {
+                            "system_prompt": get_system_prompt(),
+                            "files": list(context.files.keys()),
+                            "model": model,
+                        }
+                        success, msg = save_profile(profile_name, profile_data)
+                        color = "green" if success else "red"
+                        console.print(f"[{color}]{msg}[/]")
+
+                    elif subcmd == "load":
+                        if not profile_name:
+                            console.print("[red]Usage: /profile load <name>[/]")
+                            continue
+                        success, profile_data, msg = load_profile(profile_name)
+                        if success and profile_data:
+                            # Apply profile settings
+                            if profile_data.get("system_prompt"):
+                                set_system_prompt(profile_data["system_prompt"])
+                                console.print("[dim]Applied system prompt from profile.[/]")
+
+                            if profile_data.get("model"):
+                                model = profile_data["model"]
+                                console.print(f"[dim]Switched to model: {model}[/]")
+
+                            # Load files from profile
+                            if profile_data.get("files"):
+                                for file_path in profile_data["files"]:
+                                    if Path(file_path).exists():
+                                        context.add_file(file_path)
+                                        console.print(f"[dim]Added: {file_path}[/]")
+                                    else:
+                                        console.print(f"[yellow]File not found: {file_path}[/]")
+
+                            console.print(f"[green]{msg}[/]")
+                        else:
+                            console.print(f"[red]{msg}[/]")
+
+                    elif subcmd == "delete":
+                        if not profile_name:
+                            console.print("[red]Usage: /profile delete <name>[/]")
+                            continue
+                        success, msg = delete_profile(profile_name)
+                        color = "green" if success else "red"
+                        console.print(f"[{color}]{msg}[/]")
+
+                    else:
+                        console.print(f"[red]Unknown profile command: {subcmd}[/]")
+                        console.print("[dim]Use: save, load, or delete[/]")
+                    continue
+
                 elif cmd == "/tree":
                     # Show directory tree
                     def build_tree(directory: Path, tree: Tree, max_depth: int = 3, current_depth: int = 0) -> None:
@@ -732,6 +960,7 @@ def chat(model: str, api_key: str):
                         " /backups                   - List recent backups\n"
                         " /model [name]              - Show or switch model\n"
                         " /system [prompt|--clear]   - Set or view custom system prompt\n"
+                        " /profile [save|load|delete] <name> - Manage conversation profiles\n"
                         " /save <name>               - Save current session\n"
                         " /load <name>               - Load a saved session\n"
                         " /sessions                  - List saved sessions\n"
