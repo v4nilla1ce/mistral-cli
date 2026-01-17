@@ -257,7 +257,7 @@ def apply_fix(
         return False
 
 
-@click.group()
+@click.group(name="mistral")
 @click.version_option(version=__version__, prog_name="mistral")
 def cli():
     """Mistral CLI: Fix Python bugs using Mistral AI."""
@@ -337,17 +337,17 @@ def completions(shell: str, install: bool):
     # Shell-specific completion configuration
     if shell == "bash":
         install_path = Path.home() / ".bashrc"
-        install_line = 'eval "$(_MISTRAL_COMPLETE=bash_source mistral)"'
+        install_line = 'eval "$(_MISTRAL_COMPLETE=source_bash mistral)"'
     elif shell == "zsh":
         install_path = Path.home() / ".zshrc"
-        install_line = 'eval "$(_MISTRAL_COMPLETE=zsh_source mistral)"'
+        install_line = 'eval "$(_MISTRAL_COMPLETE=source_zsh mistral)"'
     elif shell == "fish":
         install_path = Path.home() / ".config" / "fish" / "completions" / "mistral.fish"
-        install_line = '_MISTRAL_COMPLETE=fish_source mistral | source'
+        install_line = '_MISTRAL_COMPLETE=source_fish mistral | source'
     elif shell == "powershell":
         # PowerShell profile path
         install_path = Path.home() / "Documents" / "PowerShell" / "Microsoft.PowerShell_profile.ps1"
-        install_line = '$env:_MISTRAL_COMPLETE="powershell_source"; mistral | Out-String | Invoke-Expression'
+        install_line = '$env:_MISTRAL_COMPLETE="source_powershell"; mistral | Out-String | Invoke-Expression'
 
     if install:
         try:
