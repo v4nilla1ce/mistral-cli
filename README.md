@@ -7,6 +7,7 @@ A command-line interface that uses Mistral AI to inspect your code, analyze bugs
 - **Automated Bug Fixing**: Analyzes error descriptions and suggests code fixes with streaming output.
 - **Code Review**: Get detailed quality assessments without modifying files (`mistral review`).
 - **Interactive Chat**: Conversational interface with streaming responses and file context management.
+- **Agentic Mode** (NEW): Let the AI autonomously execute commands, read/write files, and accomplish complex tasks with human-in-the-loop confirmation.
 - **Multi-Language Support**: Works with Python, JavaScript, TypeScript, Go, Rust, and more.
 - **Global Installation**: Install once with `pipx`, run from anywhere.
 - **Safety First**:
@@ -126,6 +127,52 @@ echo "MISTRAL_API_KEY=your_api_key_here" > .env
 | Linux/Mac | `~/.config/mistral-cli/config.json` | `~/.local/share/mistral-cli/` |
 
 ## Usage
+
+### Agentic Mode (NEW)
+
+The agent can autonomously execute shell commands, read/write files, search code, and accomplish complex tasks:
+
+```bash
+mistral agent
+```
+
+Simply describe what you want to do:
+- "List all Python files in src/"
+- "Find all TODO comments in the codebase"
+- "Create a new test file for the utils module"
+- "Run the tests and fix any failures"
+
+**Options:**
+- `--model <name>` - Use a specific model (default: mistral-small)
+- `--confirm-all` - Skip all confirmations (trusted mode, use with caution)
+- `--auto-confirm-safe` - Auto-confirm read-only commands (ls, git status, etc.)
+- `--max-iterations <n>` - Maximum agent iterations per request (default: 10)
+
+**Available Tools:**
+
+| Tool | Description | Confirmation |
+|------|-------------|--------------|
+| `read_file` | Read file contents | No |
+| `list_files` | List directory contents with glob support | No |
+| `search_files` | Search for text/patterns in files | No |
+| `project_context` | Analyze project structure | No |
+| `write_file` | Create or overwrite files | **Yes** |
+| `edit_file` | Modify specific parts of files | **Yes** |
+| `shell` | Execute shell commands | **Yes** |
+
+**Agent Slash Commands:**
+
+| Command | Description |
+|---------|-------------|
+| `/tools` | List available tools |
+| `/add [file]` | Add file to context |
+| `/remove <file>` | Remove file from context |
+| `/list` | List context files |
+| `/model [name]` | Show or switch model |
+| `/undo [file]` | Undo last file change |
+| `/clear` | Clear context and history |
+| `/help` | Show all commands |
+| `/exit` | Quit |
 
 ### Interactive Chat
 
