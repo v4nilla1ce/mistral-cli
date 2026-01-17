@@ -1,5 +1,5 @@
 import click
-from context import build_prompt
+from context import build_prompt, ConversationContext
 from mistral_api import MistralAPI
 
 import shutil
@@ -10,6 +10,11 @@ import datetime
 from rich.console import Console
 from rich.markdown import Markdown
 from rich.panel import Panel
+from rich.live import Live
+from rich.text import Text
+from prompt_toolkit import PromptSession
+from prompt_toolkit.formatted_text import HTML
+from prompt_toolkit.patch_stdout import patch_stdout
 
 # Configure logging
 logging.basicConfig(
@@ -98,6 +103,142 @@ def fix(file, bug_description, dry_run):
     except Exception as e:
         console.print(f"[bold red]Error: {e}[/]")
         logging.error(f"An error occurred: {e}")
+
+@cli.command()
+@click.option("--model", default="mistral-small", help="Mistral model to use (tiny, small, medium, large).")
+def chat(model):
+    """Interactive chat with Mistral AI."""
+    console.print(Panel(f"[bold blue]Mistral AI Chat ({model})[/]\n"
+                        "Type [green]/add <file>[/] to add context.\n"
+                        "Type [green]/exit[/] to quit.", 
+                        title="Welcome", border_style="blue"))
+    
+    api = MistralAPI()
+    context = ConversationContext()
+    session = PromptSession()
+    
+    while True:
+        try:
+            # Prompt
+            user_input = session.prompt(HTML("<ansigreen>You ></ansigreen> ")).strip()
+            
+            if not user_input:
+                continue
+                
+            # Slash Commands
+            if user_input.startswith("/"):
+                parts = user_input.split(maxsplit=1)
+                cmd = parts[0].lower()
+                arg = parts[1] if len(parts) > 1 else None
+                
+                if cmd in ["/exit", "/quit"]:
+                    console.print("[yellow]Goodbye![/]")
+                    break
+                
+                elif cmd == "/add":
+                    if not arg:
+                        console.print("[red]Usage: /add <file_path>[/]")
+                        continue
+                    success, msg = context.add_file(arg)
+                    color = "green" if success else "red"
+                    console.print(f"[{color}]{msg}[/]")
+                    continue
+                    
+                elif cmd == "/remove":
+                    if not arg:
+                        console.print("[red]Usage: /remove <file_path>[/]")
+                        continue
+                    success, msg = context.remove_file(arg)
+                    color = "green" if success else "red"
+                    console.print(f"[{color}]{msg}[/]")
+                    continue
+                    
+                elif cmd == "/list":
+                    if not context.files:
+                        console.print("[dim]No files in context.[/]")
+                    else:
+                        console.print("[bold]Context Files:[/]")
+                        for f in context.files:
+                            console.print(f" - {f}")
+                    continue
+                
+                elif cmd == "/clear":
+                    context.clear()
+                    console.print("[yellow]Context and history cleared.[/]")
+                    continue
+                    
+                elif cmd == "/apply":
+                    # Get last assistant message
+                    last_msg = None
+                    for msg in reversed(context.messages):
+                        if msg["role"] == "assistant":
+                            last_msg = msg["content"]
+                            break
+                    
+                    if not last_msg:
+                        console.print("[red]No AI response to apply.[/]")
+                        continue
+
+                    # Determine file
+                    target_file = None
+                    if arg:
+                        target_file = arg
+                    elif len(context.files) == 1:
+                        target_file = list(context.files.keys())[0]
+                    else:
+                        console.print("[red]Usage: /apply <file_path> (Required if multiple files in context)[/]")
+                        continue
+
+                    # Apply
+                    console.print(f"[yellow]Applying changes to {target_file}...[/]")
+                    if apply_fix(target_file, last_msg):
+                        console.print(f"[bold green]Successfully applied changes to {target_file}[/]")
+                    else:
+                        console.print(f"[bold red]Failed to apply changes to {target_file}[/]")
+                    continue
+
+                elif cmd == "/help":
+                    console.print("[bold]Commands:[/]\n"
+                                  " /add <file>    - Add file to context\n"
+                                  " /remove <file> - Remove file\n"
+                                  " /list          - List files\n"
+                                  " /apply [file]  - Apply last AI code to file\n"
+                                  " /clear         - Clear history & files\n"
+                                  " /exit          - Quit")
+                    continue
+                    
+                else:
+                    console.print(f"[red]Unknown command: {cmd}[/]")
+                    continue
+
+            # Chat Logic
+            messages = context.prepare_messages(user_input)
+            
+            # Streaming Response
+            full_response = ""
+            with Live(Markdown(""), refresh_per_second=10, console=console) as live:
+                try:
+                    stream = api.chat(messages, model=model, stream=True, temperature=0.7)
+                    # Check if stream is a list (error fallback) or generator
+                    if isinstance(stream, list): 
+                         full_response = stream[0]
+                         live.update(Markdown(full_response))
+                    else:
+                        for chunk in stream:
+                            full_response += chunk
+                            live.update(Markdown(full_response))
+                except Exception as e:
+                     console.print(f"[red]Error during streaming: {e}[/]")
+
+            # Update History
+            context.add_message("user", user_input)
+            context.add_message("assistant", full_response)
+            logging.info(f"Chat Response: {full_response}")
+            
+        except KeyboardInterrupt:
+            continue
+        except EOFError:
+            break
 
 if __name__ == "__main__":
     cli()

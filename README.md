@@ -49,6 +49,20 @@ You need a Mistral AI API Key.
 
 ## Usage 🚀
 
+### Interactive Chat 💬 (New!)
+Experience a Gemini-like conversational interface with streaming responses and context management.
+
+```bash
+python main.py chat
+```
+
+**Slash Commands:**
+- `/add <file>`: Add a file to the conversation context.
+- `/remove <file>`: Remove a file.
+- `/list`: See what files the AI can see.
+- `/clear`: Reset history and context.
+- `/exit`: Quit the chat.
+
 ### Fix a bug
 Run the `fix` command with the filename and a description of the error:
 

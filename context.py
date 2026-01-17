@@ -70,3 +70,59 @@ def build_prompt(file_path, bug_description):
 
     return prompt
 
+class ConversationContext:
+    def __init__(self):
+        self.files = {}  # path -> content
+        self.messages = []
+        
+    def add_file(self, file_path):
+        """Add a file to the context."""
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                self.files[file_path] = f.read()
+            return True, f"Added {file_path}"
+        except Exception as e:
+            return False, str(e)
+
+    def remove_file(self, file_path):
+        """Remove a file from the context."""
+        if file_path in self.files:
+            del self.files[file_path]
+            return True, f"Removed {file_path}"
+        return False, "File not in context."
+
+    def get_system_prompt(self):
+        """Construct the system prompt with file contents."""
+        base_prompt = (
+            "You are a helpful AI coding assistant.\n"
+            "Provide clear, concise answers.\n"
+            "Do not repeat code or explanations unnecessarily."
+        )
+        
+        if not self.files:
+            return base_prompt
+            
+        context_str = "\n\nContext Files:"
+        for path, content in self.files.items():
+            context_str += f"\n\n--- File: {path} ---\n{content}\n"
+            
+        return base_prompt + context_str
+
+    def prepare_messages(self, user_input):
+        """Prepare the full list of messages for the API."""
+        # We dynamically construct the system message to reflect current files
+        system_msg = {"role": "system", "content": self.get_system_prompt()}
+        
+        # Combine system msg + history + current input
+        msgs = [system_msg] + self.messages + [{"role": "user", "content": user_input}]
+        return msgs
+
+    def add_message(self, role, content):
+        """Add a message to the history."""
+        self.messages.append({"role": role, "content": content})
+        
+    def clear(self):
+        """Reset conversation and files."""
+        self.files = {}
+        self.messages = []
+
