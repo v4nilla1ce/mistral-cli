@@ -1,6 +1,6 @@
 """Mistral CLI - A command-line tool for code analysis using Mistral AI."""
 
-__version__ = "0.3.0"
+__version__ = "0.6.0"
 __author__ = "Mistral CLI Contributors"
 
 from .api import MistralAPI

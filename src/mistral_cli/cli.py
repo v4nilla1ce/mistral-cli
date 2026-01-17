@@ -4,7 +4,9 @@ import difflib
 import logging
 import os
 import re
+import re
 import shutil
+import subprocess
 from datetime import datetime
 from glob import glob
 from pathlib import Path
@@ -22,6 +24,8 @@ from rich.syntax import Syntax
 from rich.tree import Tree
 
 from . import __version__
+from . import __version__
+from .agent import Agent, AgentConfig
 from .api import MistralAPI
 
 
@@ -528,6 +532,79 @@ def fix(file: str, bug_description: str, dry_run: bool, model: str, no_stream: b
     except Exception as e:
         console.print(f"[bold red]Error: {e}[/]")
         logging.error(f"An error occurred: {e}")
+
+
+
+@cli.command()
+@click.argument("command")
+@click.option("--model", default="mistral-small", help="Mistral model to use.")
+@click.option("--max-retries", default=3, help="Max auto-fix attempts.")
+@click.option("--api-key", envvar="MISTRAL_API_KEY", help="Mistral API key.")
+def watch(command: str, model: str, max_retries: int, api_key: str):
+    """Run a command and auto-fix if it fails (Watch Mode)."""
+    console.print(f"[bold blue]Watching command:[/] [green]{command}[/]")
+
+    attempt = 0
+    while attempt <= max_retries:
+        if attempt > 0:
+            console.print(f"\n[dim]Attempt {attempt}/{max_retries}[/]")
+
+        # Run process and stream output
+        try:
+            process = subprocess.Popen(
+                command,
+                shell=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                bufsize=1,
+                universal_newlines=True
+            )
+            
+            full_output = ""
+            for line in process.stdout:
+                print(line, end="")
+                full_output += line
+            
+            return_code = process.wait()
+        except Exception as e:
+            console.print(f"[bold red]Failed to run command: {e}[/]")
+            return
+
+        if return_code == 0:
+            console.print(f"\n[bold green]Command passed![/]")
+            return
+
+        console.print(f"\n[bold red]Command failed (Exit code: {return_code})[/]")
+
+        if attempt >= max_retries:
+            console.print("[red]Max retries reached. Giving up.[/]")
+            break
+
+        # Trigger Agent
+        console.print("[bold yellow]Asking Mistral to fix...[/]")
+        
+        try:
+            api = MistralAPI(api_key=api_key)
+            # Create agent with auto-confirmation for tools? 
+            # For watch mode, we probably want it to be semi-autonomous but asking compliance.
+            # Let's stick to default (confirms actions).
+            config = AgentConfig(model=model, max_iterations=5, circuit_breaker=True)
+            agent = Agent(api=api, config=config)
+            
+            prompt = (
+                f"The command `{command}` failed with exit code {return_code}.\n"
+                f"Output:\n```\n{full_output}\n```\n"
+                "Please analyze the error and fix the code. Run verification after fixing."
+            )
+            
+            agent.run(prompt)
+            
+        except Exception as e:
+            console.print(f"[bold red]Agent error: {e}[/]")
+            break
+            
+        attempt += 1
 
 
 @cli.command()

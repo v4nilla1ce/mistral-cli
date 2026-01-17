@@ -9,9 +9,12 @@ A command-line interface that uses Mistral AI to inspect your code, analyze bugs
 - **Interactive Chat**: Conversational interface with streaming responses and file context management.
 - **Agentic Mode**: Let the AI autonomously execute commands, read/write files, and accomplish complex tasks with human-in-the-loop confirmation.
 - **Self-Correction**: Agent detects errors, analyzes exit codes, and automatically adapts commands (e.g., tries `python` when `python3` fails on Windows).
-- **Planning Mode** (NEW in v0.5): Agent creates step-by-step plans for complex tasks, with user confirmation before execution.
-- **Semantic Search** (NEW in v0.5): Index your codebase for semantic similarity search (`mistral index`).
-- **MCP Support** (NEW in v0.5): Connect to Model Context Protocol servers for extended tool capabilities.
+- **Active Memory** (NEW in v0.6): Remembers user preferences (`~/.local/share/mistral-cli/memory.json`) and project-specific facts (`.mistral/memory.json`).
+- **Autonomous Verification** (NEW in v0.6): Agent runs local tests (`pytest`, `unittest`) to verify its own code changes.
+- **Watch Mode** (NEW in v0.6): Proactively monitor commands (`mistral watch "pytest"`) and auto-fix failures.
+- **Planning Mode**: Agent creates step-by-step plans for complex tasks.
+- **Semantic Search**: Index your codebase for semantic similarity search (`mistral index`).
+- **MCP Support**: Connect to Model Context Protocol servers for extended tool capabilities.
 - **Multi-Language Support**: Works with Python, JavaScript, TypeScript, Go, Rust, and more.
 - **Global Installation**: Install once with `pipx`, run from anywhere.
 - **Safety First**:
@@ -306,6 +309,20 @@ mistral completions zsh --install
 mistral completions fish --install
 mistral completions powershell --install
 ```
+
+### Watch Mode (NEW)
+
+Proactively monitor a command and auto-fix validation failures:
+
+```bash
+# Run pytest and auto-fix if it fails
+mistral watch "pytest"
+
+# Run a script and fix errors
+mistral watch "python script.py"
+```
+
+The agent will stream the output, detect failure exit codes, analyze the error, and apply fixes until the command passes (or max retries reached).
 
 ### Version
 

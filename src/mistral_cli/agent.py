@@ -13,7 +13,11 @@ from rich.prompt import Confirm
 
 from .api import ChatResponse, MistralAPI, ToolCall
 from .context import ConversationContext
+from .memory import MemoryManager
 from .tools import Tool, ToolResult, get_all_tools, get_tool_schemas
+from .tools.memory import UpdateMemoryTool
+from .tools.verifier import VerifyTool
+from .verifier import Verifier
 
 console = Console()
 
@@ -243,6 +247,24 @@ class Agent:
         self.context = ConversationContext()
         self.state = AgentState()
 
+        # Initialize memory
+        self.memory_manager = MemoryManager()
+        
+        # Add memory tool if not present
+        if "update_memory" not in self.tool_map:
+            memory_tool = UpdateMemoryTool(self.memory_manager)
+            self.tools.append(memory_tool)
+            self.tool_map[memory_tool.name] = memory_tool
+
+        # Initialize verifier
+        self.verifier = Verifier()
+        
+        # Add verifier tool if not present
+        if "verify_change" not in self.tool_map:
+            verify_tool = VerifyTool(self.verifier)
+            self.tools.append(verify_tool)
+            self.tool_map[verify_tool.name] = verify_tool
+
         # MCP integration
         self.mcp_manager: Optional["MCPManager"] = None
         if load_mcp:
@@ -297,6 +319,14 @@ class Agent:
     def get_system_prompt(self) -> str:
         """Build the system prompt with tool awareness."""
         base_prompt = self.context.get_system_prompt()
+
+        # Inject memory
+        memories = self.memory_manager.get_all()
+        if memories:
+            memory_section = "\n\n## User Preferences & Facts\n"
+            for k, v in memories.items():
+                memory_section += f"- **{k}**: {v}\n"
+            base_prompt += memory_section
 
         tool_info = "\n\nYou have access to the following tools:\n"
         for tool in self.tools:
