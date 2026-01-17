@@ -1297,6 +1297,29 @@ def mcp_test(name: str):
 
 
 
+@cli.command()
+@click.option("--tasks", default="tests/golden_tasks.json", help="Path to tasks JSON.")
+@click.option("--api-key", envvar="MISTRAL_API_KEY", help="Mistral API key.")
+def benchmark(tasks: str, api_key: str):
+    """Run agent benchmarks (Golden Tasks)."""
+    from .benchmark import BenchmarkRunner
+    from .config import get_api_key
+
+    if not api_key:
+        api_key = get_api_key()
+    
+    if not api_key:
+        console.print("[red]API key not configured.[/]")
+        return
+
+    runner = BenchmarkRunner(tasks)
+    try:
+        runner.run_all(api_key)
+    except FileNotFoundError:
+        console.print(f"[red]Tasks file not found: {tasks}[/]")
+        console.print("[dim]Run from project root or specify full path.[/]")
+
+
 cli.add_command(agent)
 
 if __name__ == "__main__":

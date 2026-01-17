@@ -1,0 +1,44 @@
+[
+    {
+        "id": "basic_python_script",
+        "description": "Create a python script that prints hello world",
+        "prompt": "Create a file named hello.py that prints 'Hello World'",
+        "expected_files": [
+            "hello.py"
+        ],
+        "expected_content": {
+            "hello.py": "print('Hello World')"
+        },
+        "difficulty": 1
+    },
+    {
+        "id": "file_cleanup",
+        "description": "Cleanup temporary files",
+        "prompt": "Delete all .tmp files in the current directory",
+        "setup_commands": [
+            "touch temp1.tmp",
+            "touch temp2.tmp",
+            "touch keep.txt"
+        ],
+        "expected_missing_files": [
+            "temp1.tmp",
+            "temp2.tmp"
+        ],
+        "expected_files": [
+            "keep.txt"
+        ],
+        "difficulty": 2
+    },
+    {
+        "id": "refactor_function",
+        "description": "Refactor a function to use type hints",
+        "prompt": "Add type hints to the calculate_sum function in math_utils.py",
+        "setup_files": {
+            "math_utils.py": "def calculate_sum(a, b):\n    return a + b"
+        },
+        "expected_content": {
+            "math_utils.py": "def calculate_sum(a: int, b: int) -> int:"
+        },
+        "difficulty": 3
+    }
+]
