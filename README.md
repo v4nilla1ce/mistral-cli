@@ -9,9 +9,10 @@ A command-line interface that uses Mistral AI to inspect your code, analyze bugs
 - **Interactive Chat**: Conversational interface with streaming responses and file context management.
 - **Agentic Mode**: Let the AI autonomously execute commands, read/write files, and accomplish complex tasks with human-in-the-loop confirmation.
 - **Self-Correction**: Agent detects errors, analyzes exit codes, and automatically adapts commands (e.g., tries `python` when `python3` fails on Windows).
-- **Active Memory** (NEW in v0.6): Remembers user preferences (`~/.local/share/mistral-cli/memory.json`) and project-specific facts (`.mistral/memory.json`).
-- **Autonomous Verification** (NEW in v0.6): Agent runs local tests (`pytest`, `unittest`) to verify its own code changes.
-- **Watch Mode** (NEW in v0.6): Proactively monitor commands (`mistral watch "pytest"`) and auto-fix failures.
+- **Active Memory**: Remembers user preferences (`~/.local/share/mistral-cli/memory.json`) and project-specific facts (`.mistral/memory.json`).
+- **Autonomous Verification** (NEW in v0.8): Agent runs syntax checks and local tests via the `Critic` module to self-correct.
+- **Benchmark Mode** (NEW in v0.8): Data-driven evaluation using "Golden Tasks" (`mistral benchmark`).
+- **Watch Mode**: Proactively monitor commands (`mistral watch "pytest"`) and auto-fix failures.
 - **Planning Mode**: Agent creates step-by-step plans for complex tasks.
 - **Semantic Search**: Index your codebase for semantic similarity search (`mistral index`).
 - **MCP Support**: Connect to Model Context Protocol servers for extended tool capabilities.
@@ -323,6 +324,21 @@ mistral watch "python script.py"
 ```
 
 The agent will stream the output, detect failure exit codes, analyze the error, and apply fixes until the command passes (or max retries reached).
+
+### Benchmark Mode (NEW)
+
+Evaluate the agent's performance against a dataset of Golden Tasks:
+
+```bash
+# Run the default benchmark suite
+mistral benchmark
+
+# Use a custom task file
+mistral benchmark --tasks my_tasks.json
+```
+
+This runs the agent against defined tasks (file creation, refactoring, etc.) in isolated environments and reports success/failure rates.
+
 
 ### Version
 
