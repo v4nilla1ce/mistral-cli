@@ -112,8 +112,8 @@
         "prompt": "Create a script that prints the value of 'MY_ENV_VAR'.",
         "expected_files": [
             "env_print.py"
-        ], # Assuming agent names it reasonably or we check any py file
-       "difficulty": 1
+        ],
+        "difficulty": 1
     },
     {
         "id": "10_csv_to_json",
