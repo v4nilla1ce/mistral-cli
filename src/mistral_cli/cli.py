@@ -1307,7 +1307,7 @@ def benchmark(tasks: str, api_key: str):
 
     if not api_key:
         api_key = get_api_key()
-    
+
     if not api_key:
         console.print("[red]API key not configured.[/]")
         return
@@ -1318,6 +1318,37 @@ def benchmark(tasks: str, api_key: str):
     except FileNotFoundError:
         console.print(f"[red]Tasks file not found: {tasks}[/]")
         console.print("[dim]Run from project root or specify full path.[/]")
+
+
+@cli.command()
+def server():
+    """Start JSON-RPC server for VS Code extension.
+
+    This command starts a JSON-RPC 2.0 server over stdio, allowing
+    external applications (like the VS Code extension) to interact
+    with Mistral CLI programmatically.
+
+    The server uses newline-delimited JSON (ndjson) for message framing.
+
+    \b
+    Protocol:
+        - Each message is a single line of JSON terminated by newline
+        - Requests have an "id" field; notifications do not
+        - Server sends events as notifications
+
+    \b
+    Methods:
+        - initialize: Initialize with API key
+        - chat: Simple chat completion
+        - agent.run: Run agentic task
+        - agent.cancel: Cancel running task
+        - agent.confirm: Confirm/deny tool execution
+        - context.add/remove/list/clear: Manage context files
+        - model.set/get: Manage model selection
+        - shutdown: Stop the server
+    """
+    from .server import run_server
+    run_server()
 
 
 cli.add_command(agent)
