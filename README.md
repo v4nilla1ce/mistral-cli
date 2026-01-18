@@ -16,6 +16,7 @@ A command-line interface that uses Mistral AI to inspect your code, analyze bugs
 - **Planning Mode**: Agent creates step-by-step plans for complex tasks.
 - **Semantic Search**: Index your codebase for semantic similarity search (`mistral index`).
 - **MCP Support**: Connect to Model Context Protocol servers for extended tool capabilities.
+- **VS Code Extension**: Rich GUI via JSON-RPC server mode (`mistral server`).
 - **Multi-Language Support**: Works with Python, JavaScript, TypeScript, Go, Rust, and more.
 - **Global Installation**: Install once with `pipx`, run from anywhere.
 - **Safety First**:
@@ -339,6 +340,37 @@ mistral benchmark --tasks my_tasks.json
 
 This runs the agent against defined tasks (file creation, refactoring, etc.) in isolated environments and reports success/failure rates.
 
+### Server Mode (NEW in v0.9)
+
+Start a JSON-RPC server for integration with the VS Code extension or other tools:
+
+```bash
+mistral server
+```
+
+This starts a JSON-RPC 2.0 server over stdio with newline-delimited JSON (ndjson) framing.
+
+**Available RPC Methods:**
+| Method | Description |
+|--------|-------------|
+| `initialize` | Initialize server with API key |
+| `chat` | Simple chat completion with streaming |
+| `agent.run` | Run agentic task with tool execution |
+| `agent.cancel` | Cancel running task |
+| `agent.confirm` | Confirm/deny pending tool call |
+| `context.add/remove/list/clear` | Manage context files |
+| `model.set/get` | Manage model selection |
+| `shutdown` | Stop the server |
+
+**Events (Server → Client):**
+- `content.delta` - Streaming token output
+- `content.done` - Response complete
+- `thinking.update` - Agent thinking step
+- `tool.pending` - Tool awaiting confirmation
+- `tool.result` - Tool execution result
+- `token.usage` - Token usage statistics
+
+For the VS Code extension, see [mistral-vscode](https://github.com/v4nilla1ce/mistral-vscode).
 
 ### Version
 
