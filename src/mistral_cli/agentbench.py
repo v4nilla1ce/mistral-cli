@@ -115,39 +115,11 @@ class AgentBenchSession:
                      ]
 
              self.messages.append(asst_msg)
-
-             # 3. Handle Output
-             if response.has_tool_calls:
-                 tc = response.tool_calls[0]
-                 logger.info(f"Agent called tool: {tc.name}")
-                 
-                 # Dynamic action mapping:
-                 # In OSWorld, often 'bash_action' takes 'script'
-                 # In our ShellTool, 'execute' takes 'command'
-                 # We need to return what the LLM produced, but maybe normalization is needed.
-                 # AgentBench typically expects a flat "action" string for certain tasks.
-                 
-                 args = tc.arguments
-                 if tc.name == "bash_action":
-                     return {"action": args.get("script", "")}
-                 elif tc.name == "execute":
-                     return {"action": args.get("command", "")}
-                 else:
-                     # Generic fallback: return the raw arguments or a string representation
-                     if "script" in args:
-                         return {"action": args["script"]}
-                     if "command" in args:
-                         return {"action": args["command"]}
-                     return {"action": f"echo 'Called tool {tc.name} with {args}'"}
-             else:
-                 content = response.content or ""
-                 logger.info(f"Agent responded with text: {content[:50]}...")
-                 safe_content = content.replace("'", "'\\''") 
-                 return {"action": f"echo '{safe_content}'"}
+             return asst_msg
 
         except Exception as e:
             logger.error(f"Error in respond: {e}", exc_info=True)
-            return {"action": f"echo 'Error: {str(e)}'"}
+            return {"role": "assistant", "content": f"Error: {str(e)}"}
 
 
 # Global session instance
