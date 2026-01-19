@@ -370,6 +370,18 @@ This starts a JSON-RPC 2.0 server over stdio with newline-delimited JSON (ndjson
 - `tool.result` - Tool execution result
 - `token.usage` - Token usage statistics
 
+### AgentBench Integration (NEW in v0.9.1)
+
+Evaluate the agent's performance compatibility with the [AgentBench](https://github.com/THUDM/AgentBench) framework.
+
+1. Start the headless benchmark server:
+```bash
+mistral agentbench --port 5000
+```
+2. Configure AgentBench to point to `http://localhost:5000/step`.
+
+This allows `mistral-cli` to be benchmarked on complex OS and filesystem tasks alongside other SOTA agents.
+
 For the VS Code extension, see [mistral-vscode](https://github.com/v4nilla1ce/mistral-vscode).
 
 ### Version

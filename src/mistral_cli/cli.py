@@ -1351,6 +1351,15 @@ def server():
     run_server()
 
 
+@cli.command()
+@click.option("--port", default=5000, help="Port to run the AgentBench server on.")
+def agentbench(port: int):
+    """Run the agent in AgentBench mode (Headless Server)."""
+    from .agentbench import run_agentbench_server
+
+    run_agentbench_server(port)
+
+
 cli.add_command(agent)
 
 if __name__ == "__main__":
