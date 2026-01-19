@@ -57,7 +57,7 @@ class AgentBenchSession:
              # We need to append the tool result (tool).
              
              last_msg = self.messages[-1]
-             if last_msg["role"] == "assistant" and "tool_calls" in last_msg:
+        if last_msg["role"] == "assistant" and "tool_calls" in last_msg and last_msg["tool_calls"]:
                  # It was a tool call, so this observation is the tool output
                  # We assume the observation corresponds to the LAST tool call if multiple
                  # But typically AgentBench is single-threaded step-by-step
@@ -71,7 +71,11 @@ class AgentBenchSession:
              else:
                  # Fallback: Just treat it as user message (e.g. feedback)
                  self.messages.append({"role": "user", "content": observation})
+        
+        return self.respond()
 
+    def respond(self) -> dict[str, Any]:
+        """Generate a response based on current message history."""
         # 2. Call API
         try:
              response = self.api.chat(
@@ -143,14 +147,41 @@ class AgentBenchHandler(BaseHTTPRequestHandler):
             
             try:
                 data = json.loads(post_data.decode('utf-8'))
-                # AgentBench can send "prompt" (first step) or "observation" (subsequent)
-                observation = data.get("observation") or data.get("prompt") or ""
-                
-                # Initialize session if needed
-                if _session is None:
-                    _session = AgentBenchSession()
-                
-                result = _session.step(observation)
+                if "messages" in data:
+                    # STATELESS MODE: Client provides full history
+                    messages = data["messages"]
+                    if _session is None:
+                        _session = AgentBenchSession()
+                    
+                    # Sync session messages with provided history
+                    # We preserve the system prompt (first message) from our session
+                    # and append/replace the rest with provided messages
+                    
+                    # Ensure provided messages don't duplicate the system prompt if client sent it
+                    start_idx = 0
+                    if messages and messages[0]["role"] == "system":
+                        start_idx = 1
+                    
+                    # Update session state: System Prompt + Client History
+                    _session.messages = [_session.messages[0]] + messages[start_idx:]
+                    
+                    # Now call step with empty observation because the observation is already in the history!
+                    # BUT step() expects an observation to APPEND.
+                    # We don't want to append anything. We just want to call the API.
+                    
+                    # Refactor step() or call internal logic?
+                    # Let's create a new method 'respond()'
+                    
+                    result = _session.respond()
+                    
+                else:
+                    # STATEFUL MODE: Legacy AgentBench
+                    observation = data.get("observation") or data.get("prompt") or ""
+                    
+                    if _session is None:
+                        _session = AgentBenchSession()
+                    
+                    result = _session.step(observation)
                 
                 self.send_response(200)
                 self.send_header('Content-type', 'application/json')
@@ -158,6 +189,7 @@ class AgentBenchHandler(BaseHTTPRequestHandler):
                 self.wfile.write(json.dumps(result).encode('utf-8'))
                 
             except Exception as e:
+                logger.error(f"Error handling request: {e}")
                 self.send_response(500)
                 self.end_headers()
                 self.wfile.write(json.dumps({"error": str(e)}).encode('utf-8'))
