@@ -56,21 +56,21 @@ class AgentBenchSession:
              # If we have history, the last message probably was a tool call (assistant).
              # We need to append the tool result (tool).
              
-        last_msg = self.messages[-1]
-        if last_msg["role"] == "assistant" and "tool_calls" in last_msg and last_msg["tool_calls"]:
-             # It was a tool call, so this observation is the tool output
-             # We assume the observation corresponds to the LAST tool call if multiple
-             # But typically AgentBench is single-threaded step-by-step
-             for tc in last_msg["tool_calls"]:
-                 self.messages.append({
-                     "role": "tool",
-                     "content": observation,
-                     "tool_call_id": tc["id"],
-                     "name": tc["function"]["name"]
-                 })
-        else:
-             # Fallback: Just treat it as user message (e.g. feedback)
-             self.messages.append({"role": "user", "content": observation})
+             last_msg = self.messages[-1]
+             if last_msg["role"] == "assistant" and "tool_calls" in last_msg and last_msg["tool_calls"]:
+                 # It was a tool call, so this observation is the tool output
+                 # We assume the observation corresponds to the LAST tool call if multiple
+                 # But typically AgentBench is single-threaded step-by-step
+                 for tc in last_msg["tool_calls"]:
+                     self.messages.append({
+                         "role": "tool",
+                         "content": observation,
+                         "tool_call_id": tc["id"],
+                         "name": tc["function"]["name"]
+                     })
+             else:
+                 # Fallback: Just treat it as user message (e.g. feedback)
+                 self.messages.append({"role": "user", "content": observation})
         
         return self.respond()
 
