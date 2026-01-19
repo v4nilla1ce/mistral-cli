@@ -406,3 +406,6 @@ planning/
 *.bak
 mistral-cli.log
 .claude/settings.local.json
+
+# Benchmarks
+benchmarks/
