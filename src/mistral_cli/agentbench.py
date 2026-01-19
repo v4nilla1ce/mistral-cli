@@ -45,22 +45,26 @@ class AgentBenchSession:
             }
         ]
 
+    def _translate_messages(self, messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Translate roles for Mistral API compatibility."""
+        translated = []
+        for msg in messages:
+            m = msg.copy()
+            if m["role"] == "agent":
+                m["role"] = "assistant"
+                logger.info("Translating role 'agent' -> 'assistant'")
+            translated.append(m)
+        return translated
+
     def step(self, observation: str) -> dict[str, Any]:
         """Advance the agent state with an observation from the environment."""
         
         # 1. Add observation to history
-        # If this is the FIRST step (after system prompt), it's the user's task prompt.
         if len(self.messages) == 1:
             self.messages.append({"role": "user", "content": observation})
         else:
-             # If we have history, the last message probably was a tool call (assistant).
-             # We need to append the tool result (tool).
-             
              last_msg = self.messages[-1]
              if last_msg["role"] == "assistant" and "tool_calls" in last_msg and last_msg["tool_calls"]:
-                 # It was a tool call, so this observation is the tool output
-                 # We assume the observation corresponds to the LAST tool call if multiple
-                 # But typically AgentBench is single-threaded step-by-step
                  for tc in last_msg["tool_calls"]:
                      self.messages.append({
                          "role": "tool",
@@ -69,33 +73,36 @@ class AgentBenchSession:
                          "name": tc["function"]["name"]
                      })
              else:
-                 # Fallback: Just treat it as user message (e.g. feedback)
                  self.messages.append({"role": "user", "content": observation})
         
         return self.respond()
 
-    def respond(self) -> dict[str, Any]:
+    def respond(self, tools: Optional[list[dict[str, Any]]] = None) -> dict[str, Any]:
         """Generate a response based on current message history."""
+        # Use provided tools or fall back to session tools
+        active_tools = tools if tools is not None else self.tools
+        
+        # Translate messages for Mistral (role mapping)
+        api_messages = self._translate_messages(self.messages)
+        
+        logger.info(f"Generating response for history length: {len(api_messages)}")
+        
         # 2. Call API
         try:
              response = self.api.chat(
-                 messages=self.messages,
-                 model="mistral-large-latest", # Use capable model
-                 tools=self.tools,
+                 messages=api_messages,
+                 model="mistral-large-latest",
+                 tools=active_tools if active_tools else None,
                  return_full_response=True
              )
              
-             # Check for API error represented as ChatResponse with content but no raw
              if not response.raw and not response.tool_calls and not response.content:
+                  logger.warning("Empty response from API")
                   return {"action": "echo 'Error: Empty response from API'"}
              
-             # Append assistant response to history
-             # We need to reconstruct the message dict from the ChatResponse
-             # The MistralAPI returns a ChatResponse, but for history we need the raw dict or equivalent
              if response.raw:
                  asst_msg = response.raw["choices"][0]["message"]
              else:
-                 # Reconstruct if raw is missing (mocking etc)
                  asst_msg = {"role": "assistant", "content": response.content}
                  if response.tool_calls:
                      asst_msg["tool_calls"] = [
@@ -111,22 +118,35 @@ class AgentBenchSession:
 
              # 3. Handle Output
              if response.has_tool_calls:
-                 # Extract first tool call
                  tc = response.tool_calls[0]
-                 if tc.name == "execute":
-                     cmd = tc.arguments.get("command", "")
-                     return {"action": cmd}
+                 logger.info(f"Agent called tool: {tc.name}")
+                 
+                 # Dynamic action mapping:
+                 # In OSWorld, often 'bash_action' takes 'script'
+                 # In our ShellTool, 'execute' takes 'command'
+                 # We need to return what the LLM produced, but maybe normalization is needed.
+                 # AgentBench typically expects a flat "action" string for certain tasks.
+                 
+                 args = tc.arguments
+                 if tc.name == "bash_action":
+                     return {"action": args.get("script", "")}
+                 elif tc.name == "execute":
+                     return {"action": args.get("command", "")}
                  else:
-                     return {"action": f"echo 'Error: Unknown tool {tc.name}'"}
+                     # Generic fallback: return the raw arguments or a string representation
+                     if "script" in args:
+                         return {"action": args["script"]}
+                     if "command" in args:
+                         return {"action": args["command"]}
+                     return {"action": f"echo 'Called tool {tc.name} with {args}'"}
              else:
-                 # Text response - treat as thought or generic output
                  content = response.content or ""
-                 # Escape quotes for echo
+                 logger.info(f"Agent responded with text: {content[:50]}...")
                  safe_content = content.replace("'", "'\\''") 
                  return {"action": f"echo '{safe_content}'"}
 
         except Exception as e:
-            logger.error(f"Error in step: {e}")
+            logger.error(f"Error in respond: {e}", exc_info=True)
             return {"action": f"echo 'Error: {str(e)}'"}
 
 
@@ -147,40 +167,26 @@ class AgentBenchHandler(BaseHTTPRequestHandler):
             
             try:
                 data = json.loads(post_data.decode('utf-8'))
+                tools = data.get("tools")
+                
                 if "messages" in data:
-                    # STATELESS MODE: Client provides full history
+                    # STATELESS MODE
                     messages = data["messages"]
                     if _session is None:
                         _session = AgentBenchSession()
                     
-                    # Sync session messages with provided history
-                    # We preserve the system prompt (first message) from our session
-                    # and append/replace the rest with provided messages
-                    
-                    # Ensure provided messages don't duplicate the system prompt if client sent it
                     start_idx = 0
                     if messages and messages[0]["role"] == "system":
                         start_idx = 1
                     
-                    # Update session state: System Prompt + Client History
                     _session.messages = [_session.messages[0]] + messages[start_idx:]
-                    
-                    # Now call step with empty observation because the observation is already in the history!
-                    # BUT step() expects an observation to APPEND.
-                    # We don't want to append anything. We just want to call the API.
-                    
-                    # Refactor step() or call internal logic?
-                    # Let's create a new method 'respond()'
-                    
-                    result = _session.respond()
+                    result = _session.respond(tools=tools)
                     
                 else:
-                    # STATEFUL MODE: Legacy AgentBench
+                    # STATEFUL MODE
                     observation = data.get("observation") or data.get("prompt") or ""
-                    
                     if _session is None:
                         _session = AgentBenchSession()
-                    
                     result = _session.step(observation)
                 
                 self.send_response(200)
@@ -189,7 +195,7 @@ class AgentBenchHandler(BaseHTTPRequestHandler):
                 self.wfile.write(json.dumps(result).encode('utf-8'))
                 
             except Exception as e:
-                logger.error(f"Error handling request: {e}")
+                logger.error(f"Error handling request: {e}", exc_info=True)
                 self.send_response(500)
                 self.end_headers()
                 self.wfile.write(json.dumps({"error": str(e)}).encode('utf-8'))
