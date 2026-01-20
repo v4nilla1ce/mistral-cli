@@ -36,6 +36,21 @@ logger = logging.getLogger(__name__)
 logger.info(f"AgentBench module loaded, logging to: {_log_path}")
 sys.stderr.flush()
 
+def _heartbeat_loop():
+    """Periodic log to prove server is alive."""
+    import time
+    while True:
+        try:
+            logger.debug("--- HEARTBEAT: Agent Server is alive ---")
+            sys.stderr.flush()
+        except:
+            pass
+        time.sleep(60)
+
+import threading
+_heartbeat_thread = threading.Thread(target=_heartbeat_loop, daemon=True)
+_heartbeat_thread.start()
+
 
 class AgentBenchSession:
     """Manages a single AgentBench session."""
@@ -121,15 +136,20 @@ class AgentBenchSession:
                 return {"role": "assistant", "content": ""}
 
             print(f"[AGENT] Making API call to Mistral...", file=sys.stderr, flush=True)
-            logger.debug("Making API call...")
+            logger.debug(f"Making API call with {len(api_messages)} messages and {len(active_tools) if active_tools else 0} tools...")
+            
+            # Explicitly log the roles in history for debugging
+            roles = [m['role'] for m in api_messages]
+            logger.debug(f"Message role sequence: {roles}")
+
             response = self.api.chat(
                 messages=api_messages,
                 model="mistral-large-latest",
                 tools=active_tools if active_tools else None,
                 return_full_response=True
             )
-            print(f"[AGENT] API response: content={bool(response.content)}, tool_calls={len(response.tool_calls) if response.tool_calls else 0}", file=sys.stderr, flush=True)
-            logger.info(f"API response received: content={bool(response.content)}, tool_calls={bool(response.tool_calls)}, raw={bool(response.raw)}")
+            print(f"[AGENT] API response received", file=sys.stderr, flush=True)
+            logger.info(f"API response received: content={bool(response.content)}, tool_calls={len(response.tool_calls) if response.tool_calls else 0}")
 
             if not response.raw and not response.tool_calls and not response.content:
                 logger.warning("Empty response from API")
