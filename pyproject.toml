@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "mistral-cli"
-version = "0.9.8"
+version = "0.9.9"
 description = "A CLI tool to analyze Python code, identify bugs, and suggest fixes using Mistral AI"
 readme = "README.md"
 license = "MIT"

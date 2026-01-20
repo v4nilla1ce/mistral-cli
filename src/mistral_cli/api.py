@@ -98,7 +98,7 @@ class MistralAPI:
 
         try:
             response = requests.post(
-                self.base_url, headers=headers, json=data, stream=stream
+                self.base_url, headers=headers, json=data, stream=stream, timeout=180
             )
 
             if response.status_code != 200:
